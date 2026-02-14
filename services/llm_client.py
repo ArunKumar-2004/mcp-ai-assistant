@@ -34,13 +34,23 @@ class LLMClient:
 
         text = response.json().get("text", "").strip()
         
-        # Attempt to parse JSON if possible, otherwise return as summary
+        # Attempt to parse JSON if possible
+        json_str = text
         try:
-            # Look for JSON block in markdown if LLM includes it
+            # 1. Look for JSON block in markdown
             if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            return json.loads(text)
-        except json.JSONDecodeError:
+                json_str = text.split("```json")[1].split("```")[0].strip()
+            elif "```" in text:
+                 json_str = text.split("```")[1].split("```")[0].strip()
+            
+            # 2. Heuristic: Find first '{' and last '}' if not already parsed
+            if "{" in json_str and "}" in json_str:
+                start = json_str.find("{")
+                end = json_str.rfind("}") + 1
+                json_str = json_str[start:end]
+
+            return json.loads(json_str)
+        except (json.JSONDecodeError, ValueError):
             return {"raw_text": text}
 
     def _handle_rate_limit(self):

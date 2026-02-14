@@ -31,8 +31,14 @@ class DeepHealthDriver:
                     "raw_status": status
                 }
         except Exception as e:
+            latency = int((time.time() - start_time) * 1000)
             logger.error(f"Health check failed for {url}: {e}")
-            raise
+            return {
+                "status": "DOWN",
+                "latency_ms": latency,
+                "http_code": 0, # Denotes transport failure
+                "raw_status": f"ERROR: {str(e)}"
+            }
 
 class DatabaseDriver:
     """

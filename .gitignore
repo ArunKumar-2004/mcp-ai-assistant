@@ -10,6 +10,8 @@ build/
 dist/
 *.egg-info/
 
+/tests/
+
 # Environment Variables
 .env
 .env.local

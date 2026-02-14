@@ -13,27 +13,47 @@ class DriftAnalyst:
     """
     def compare_configs(self, template_path: str, actual_data: Dict[str, Any], integrity_mode: bool = False) -> dict:
         issues = []
+        analysis_type = "INTEGRITY" if integrity_mode else "DRIFT"
         
         # 1. Fuzzy Resolution
         resolved_path = self._resolve_fuzzy_path(template_path)
         if not os.path.exists(resolved_path):
-             raise FileNotFoundError(f"Configuration baseline '{template_path}' not found.")
+             # We treat file missing as a high-priority drift issue for the AI to narrate
+             return {
+                "drift_detected": True,
+                "drift_keys": ["BASELINE_FILE_MISSING"],
+                "resolved_path": resolved_path,
+                "analysis_type": analysis_type
+             }
 
         # 2. Load and Parse baseline
         template = {}
-        with open(resolved_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-            ext = os.path.splitext(resolved_path)[1].lower()
-            if ext in ['.yaml', '.yml']: template = yaml.safe_load(content)
-            elif ext == '.json': template = json.loads(content)
-            elif '.env' in resolved_path or resolved_path.endswith('.local'): template = self._parse_dotenv(content)
-            elif ext == '.properties': template = self._parse_properties(content)
-            elif resolved_path.endswith('pom.xml'): template = self._parse_pom_xml(content)
-            elif 'Dockerfile' in resolved_path: template = self._parse_dockerfile(content)
-            else: template = self._parse_dotenv(content) if '=' in content else json.loads(content)
+        try:
+            with open(resolved_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                ext = os.path.splitext(resolved_path)[1].lower()
+                if ext in ['.yaml', '.yml']: template = yaml.safe_load(content)
+                elif ext == '.json': template = json.loads(content)
+                elif '.env' in resolved_path or resolved_path.endswith('.local'): template = self._parse_dotenv(content)
+                elif ext == '.properties': template = self._parse_properties(content)
+                elif resolved_path.endswith('pom.xml'): template = self._parse_pom_xml(content)
+                elif 'Dockerfile' in resolved_path: template = self._parse_dockerfile(content)
+                else: template = self._parse_dotenv(content) if '=' in content else json.loads(content)
+        except Exception as e:
+            return {
+                "drift_detected": True,
+                "drift_keys": [f"PARSE_ERROR: {str(e)}"],
+                "resolved_path": resolved_path,
+                "analysis_type": analysis_type
+            }
 
         if not template:
-            return {"drift_detected": False, "drift_keys": [], "error": "EMPTY_BASELINE", "resolved_path": resolved_path}
+            return {
+                "drift_detected": True, 
+                "drift_keys": ["EMPTY_BASELINE_FILE"], 
+                "resolved_path": resolved_path, 
+                "analysis_type": analysis_type
+            }
 
         # 3. Perform Audit
         if integrity_mode:
@@ -45,7 +65,7 @@ class DriftAnalyst:
             "drift_detected": len(issues) > 0,
             "drift_keys": list(set(issues)),
             "resolved_path": resolved_path,
-            "analysis_type": "INTEGRITY" if integrity_mode else "DRIFT"
+            "analysis_type": analysis_type
         }
 
     def _resolve_fuzzy_path(self, path: str) -> str:

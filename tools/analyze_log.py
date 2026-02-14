@@ -42,14 +42,20 @@ class AnalyzeBuildLogTool:
 
     def _validate_llm_response(self, response: dict) -> dict:
         if not isinstance(response, dict):
-             raise ValueError("LLM response is not a dict")
+             return {
+                "category": LogCategory.INFRA,
+                "severity": Severity.MEDIUM,
+                "confidence": 0.3,
+                "explanation": str(response),
+                "suggested_fix": "Perform a manual log review."
+             }
              
         return {
-            "category": str(response.get("category", LogCategory.INFRA)).upper(),
-            "severity": str(response.get("severity", Severity.MEDIUM)).upper(),
-            "confidence": float(response.get("confidence", 0.5)),
-            "explanation": response.get("explanation", "Unknown cause."),
-            "suggested_fix": response.get("suggested_fix", "Manual review required.")
+            "category": str(response.get("category") or LogCategory.INFRA).upper(),
+            "severity": str(response.get("severity") or Severity.MEDIUM).upper(),
+            "confidence": float(response.get("confidence") if response.get("confidence") is not None else 0.5),
+            "explanation": str(response.get("explanation") or "AI could not determine a specific cause."),
+            "suggested_fix": str(response.get("suggested_fix") or "Review terminal output for clues.")
         }
 
     def _generate_error_narration(self, error_msg: str) -> dict:
