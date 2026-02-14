@@ -34,7 +34,7 @@ class ConfigLoader:
         self._apply_env_overrides()
         self._validate_env_vars()
 
-        logger.info("✅ Configuration validated and loaded successfully")
+        logger.info("Configuration validated and loaded successfully")
         return self.config
 
     def exists(self) -> bool:
@@ -115,6 +115,6 @@ class ConfigLoader:
                 "health_check_seconds": 10
             }
         }
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(default_config, f, indent=2)
-        print(f"✨ Generated default config at {path}")
+        print(f"Generated default config at {path}")

@@ -70,9 +70,28 @@ In your IDE settings, add the server pointing to **the absolute path** of `serve
 - **Args**: `["D:/path/to/repo/server.py"]`
 - **Env**: Add your keys globally or in the IDE settings.
 
+## 🕹️ How to Run Tools in your IDE
+
+Once the server is listed in your IDE, you can interact with it in two ways.
+
+### 1. The "Initializer" (Do this first)
+
+Since you don't have a config file yet, start by telling the AI:
+
+> "Run the **initialize_config** tool for me."
+
+This will create `readiness_schema.json` in your current folder. You can then open and edit that file to add your real GitHub repos.
+
+### 2. Running Audits
+
+Once configured, you can ask the AI to perform audits using natural language:
+
+- "Check the deployment readiness of the **backend** project in **staging**."
+- "Verify the build for build ID **12345**."
+- "Show me the configuration drift for the **frontend**."
+
+The AI will automatically pick the right MCP tool, execute it, and explain the results to you.
+
 ## 🔋 Supported Tools
 
-- `evaluate_build(project, build_id, environment)`: Full-stack audit.
-- `verify_build(project, build_id)`: Log-only analysis.
-- `verify_config(project, environment)`: Configuration-only audit.
-- `verify_health(project, environment)`: Health-only check.
+...
