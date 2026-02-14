@@ -1,6 +1,7 @@
 from .tool_registry import ToolRegistry
 from .context_manager import AgentContext
 from tools.fetch_build_log import FetchBuildLogTool
+from tools.get_latest_build import GetLatestBuildTool
 from tools.analyze_log import AnalyzeBuildLogTool
 from tools.fetch_config import FetchEnvironmentConfigTool
 from tools.compare_config import CompareEnvironmentConfigsTool
@@ -26,6 +27,7 @@ class DeploymentAgent:
 
     def _register_all_tools(self):
         self.registry.register_tool("fetch_build_log", FetchBuildLogTool())
+        self.registry.register_tool("get_latest_build", GetLatestBuildTool())
         self.registry.register_tool("analyze_build_log", AnalyzeBuildLogTool())
         self.registry.register_tool("fetch_environment_config", FetchEnvironmentConfigTool())
         self.registry.register_tool("compare_environment_configs", CompareEnvironmentConfigsTool())

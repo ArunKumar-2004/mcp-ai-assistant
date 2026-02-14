@@ -52,6 +52,94 @@ class GitHubActionsDriver:
             
             return "\n\n".join(log_contents) if log_contents else "No log files found in bundle."
 
+    def list_workflow_runs(self, repo: str, workflow_name: str = None, 
+                           status: str = None, branch: str = None, limit: int = 10) -> list:
+        """
+        List recent workflow runs for a repository.
+        
+        Args:
+            repo: Repository in format "owner/repo"
+            workflow_name: Optional workflow file name (e.g., "nextjs-build.yml")
+            status: Optional filter (completed, in_progress, queued, failure, success)
+            branch: Optional branch filter
+            limit: Maximum number of runs to return (max 100)
+        
+        Returns:
+            List of workflow runs with id, name, status, conclusion, created_at
+        """
+        if not self.token:
+            logger.warning("GITHUB_TOKEN not found, returning empty list.")
+            return []
+
+        headers = {
+            "Authorization": f"token {self.token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        
+        # Build query parameters
+        params = {"per_page": min(limit, 100)}
+        if status:
+            params["status"] = status
+        if branch:
+            params["branch"] = branch
+        
+        # If workflow_name is provided, we need to get workflow_id first
+        url = f"{self.base_url}/repos/{repo}/actions/runs"
+        
+        response = requests.get(url, headers=headers, params=params)
+        
+        if response.status_code != 200:
+            logger.error(f"Failed to list workflow runs: {response.status_code} {response.text}")
+            raise RuntimeError(f"Failed to list workflow runs: {response.status_code}")
+        
+        data = response.json()
+        runs = data.get("workflow_runs", [])
+        
+        # Filter by workflow name if specified
+        if workflow_name:
+            runs = [r for r in runs if workflow_name.lower() in r.get("name", "").lower() or 
+                    workflow_name in r.get("path", "")]
+        
+        # Format the response
+        return [{
+            "id": run["id"],
+            "name": run.get("name", "Unknown"),
+            "status": run.get("status", "unknown"),
+            "conclusion": run.get("conclusion"),
+            "created_at": run.get("created_at"),
+            "updated_at": run.get("updated_at"),
+            "head_branch": run.get("head_branch"),
+            "head_commit": {
+                "message": run.get("head_commit", {}).get("message", ""),
+                "author": run.get("head_commit", {}).get("author", {}).get("name", "")
+            },
+            "html_url": run.get("html_url")
+        } for run in runs[:limit]]
+
+    def get_latest_run(self, repo: str, workflow_name: str = None, 
+                       branch: str = None, status: str = "completed") -> dict:
+        """
+        Get the most recent workflow run.
+        
+        Args:
+            repo: Repository in format "owner/repo"
+            workflow_name: Optional workflow filter
+            branch: Optional branch filter (default: None, gets all branches)
+            status: Filter by status (default: "completed")
+        
+        Returns:
+            Single workflow run dict or None if no runs found
+        """
+        runs = self.list_workflow_runs(
+            repo=repo,
+            workflow_name=workflow_name,
+            status=status,
+            branch=branch,
+            limit=1
+        )
+        
+        return runs[0] if runs else None
+
 class JenkinsDriver:
     """
     Driver for fetching build logs from Jenkins.

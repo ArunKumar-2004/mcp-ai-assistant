@@ -82,6 +82,29 @@ def run_server():
         return await agent._execute_tool_call("fetch_build_log", {"build_id": build_id, "repo": repo})
 
     @mcp.tool()
+    async def get_latest_build(repo: str = None, workflow_name: str = None, 
+                              branch: str = None, include_log: bool = True) -> dict:
+        """
+        Automatically fetch and analyze the latest GitHub Actions build.
+        No manual run_id required - intelligently discovers the most recent workflow run.
+        
+        Args:
+            repo: Repository (owner/repo format). Defaults to GITHUB_REPOSITORY env var.
+            workflow_name: Optional workflow filter (e.g., "nextjs-build" or "Next.js Build")
+            branch: Optional branch filter (e.g., "main")
+            include_log: Whether to fetch full log text (default: True)
+        
+        Returns:
+            Latest build status with AI-powered analysis of failures.
+        """
+        return await agent._execute_tool_call("get_latest_build", {
+            "repo": repo,
+            "workflow_name": workflow_name,
+            "branch": branch,
+            "include_log": include_log
+        })
+
+    @mcp.tool()
     async def analyze_build_log(log_text: str) -> dict:
         """Use AI to classify the build log and determine the root cause of failures."""
         return await agent._execute_tool_call("analyze_build_log", {"log_text": log_text})
