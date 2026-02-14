@@ -11,11 +11,20 @@ The **AI Deployment Readiness Assistant** is a powerful MCP server that audits y
 
 ## 🚀 Instant Usage (No Cloning)
 
-The fastest way to use this server on any laptop is via `npx`. Add this to your IDE's MCP settings:
+Run this server directly from GitHub without cloning. Add this to your IDE's MCP settings:
 
 - **Command**: `npx`
-- **Args**: `["-y", "github:your-username/readiness-assistant"]`
-- **Env**: (Add your `GITHUB_TOKEN`, etc. here)
+- **Args**: `["-y", "github:ArunKumar-2004/mcp-ai-assistant"]`
+- **Env**: (Add your `GITHUB_TOKEN`, `COHERE_API_KEY`, etc. here)
+
+### ⚠️ Troubleshooting "Python not found" (Windows)
+
+If you get a **Code 9009** or "Python was not found":
+
+1. Open **Start Menu**, search for **"Manage App Execution Aliases"**.
+2. Find `Python.exe` and `Python3.exe` in the list.
+3. **Turn them OFF**.
+4. Restart your IDE and try again.
 
 ---
 

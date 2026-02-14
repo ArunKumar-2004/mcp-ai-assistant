@@ -4,7 +4,7 @@
   "description": "AI Deployment Readiness Assistant MCP Server",
   "main": "server.py",
   "bin": {
-    "readiness-assistant": "./server.py"
+    "readiness-assistant": "./index.js"
   },
   "scripts": {
     "start": "python server.py"
