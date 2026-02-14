@@ -32,7 +32,7 @@ class ConfigLoader:
         self._read_json()
         self._validate_structure()
         self._apply_env_overrides()
-        self._validate_env_vars()
+        self._validate_env_vars(fail_fast=fail_fast)
 
         logger.info("Configuration validated and loaded successfully")
         return self.config
@@ -78,17 +78,18 @@ class ConfigLoader:
         # For multi-project, we skip simple global overrides for now
         pass
 
-    def _validate_env_vars(self):
+    def _validate_env_vars(self, fail_fast: bool = True):
         missing = []
         for var in self.config.get("mandatory_env_vars", []):
             if not os.getenv(var):
                 missing.append(var)
 
         if missing:
-            raise ConfigError(
-                "Missing required environment variables in .env:\n" +
-                "\n".join([f" - {m}" for m in missing])
-            )
+            message = "Missing required environment variables in .env:\n" + "\n".join([f" - {m}" for m in missing])
+            if fail_fast:
+                raise ConfigError(message)
+            else:
+                logger.warning(f"⚠️ {message}")
 
     @staticmethod
     def discover_workspace_projects(root_dir: str = ".") -> dict:
