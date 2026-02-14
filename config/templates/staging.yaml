@@ -1,0 +1,5 @@
+DB_URL: postgresql://localhost:5432/staging_db
+REDIS_TTL: 3600
+API_VERSION: v1.2.0
+CORS_ORIGIN: "*"
+LOG_LEVEL: INFO

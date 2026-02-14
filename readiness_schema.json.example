@@ -1,0 +1,32 @@
+{
+  "project_name": "Enterprise Readiness Hub",
+  "projects": {
+    "frontend": {
+      "repo": "owner/frontend-react-app",
+      "environments": {
+        "staging": {
+          "health_url": "http://localhost:8080/frontend/health",
+          "db_url": "none",
+          "config_template": "frontend-react-app/config/staging.json"
+        }
+      }
+    },
+    "backend": {
+      "repo": "owner/backend-springboot-app",
+      "environments": {
+        "staging": {
+          "health_url": "http://localhost:8080/actuator/health",
+          "db_url": "http://localhost:8080/db/ping",
+          "config_template": "backend-springboot-app/src/main/resources/application-staging.yml"
+        }
+      }
+    }
+  },
+  "mandatory_env_vars": [
+    "COHERE_API_KEY",
+    "GITHUB_TOKEN"
+  ],
+  "timeouts": {
+    "health_check_seconds": 15
+  }
+}

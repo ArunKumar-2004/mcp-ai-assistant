@@ -1,0 +1,19 @@
+{
+  "project_name": "AI Deployment Readiness Assistant",
+  "default_environment": "staging",
+  "environments": {
+    "staging": {
+      "health_url": "http://staging.internal/health",
+      "db_url": "postgresql://user:pass@localhost:5432/staging_db",
+      "config_template": "config/templates/staging.yaml"
+    }
+  },
+  "mandatory_env_vars": [
+    "COHERE_API_KEY",
+    "GITHUB_TOKEN",
+    "SLACK_WEBHOOK_URL"
+  ],
+  "timeouts": {
+    "health_check_seconds": 10
+  }
+}

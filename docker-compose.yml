@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  mcp-assistant:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    # If running as SSE (Remote), we'd change the command
+    # For now, this is a placeholder for local containerized execution
+    command: python server.py
