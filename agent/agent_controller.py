@@ -123,9 +123,18 @@ class DeploymentAgent:
         return analysis_res
 
     async def verify_config(self, project: str, environment: str) -> dict:
-        project_config = self.config.get("projects", {}).get(project, {})
+        if not self.config:
+             return {"success": False, "error": {"message": "Server not configured. Run initialize_config first."}}
+             
+        projects = self.config.get("projects", {})
+        if project not in projects:
+            return {"success": False, "error": {"message": f"Project '{project}' not found in readiness_schema.json (Available: {list(projects.keys())})"}}
+        
+        project_config = projects[project]
         env_config = project_config.get("environments", {}).get(environment, {})
-        if not env_config: return {"success": False, "error": {"message": "Env not found"}}
+        if not env_config: 
+            return {"success": False, "error": {"message": f"Environment '{environment}' not found for project '{project}'"}}
+            
         template_file = env_config.get("config_template")
         drift_res = await self._execute_tool_call("compare_environment_configs", {
             "env_1": environment, 
@@ -134,9 +143,18 @@ class DeploymentAgent:
         return drift_res
 
     async def verify_health(self, project: str, environment: str) -> dict:
-        project_config = self.config.get("projects", {}).get(project, {})
+        if not self.config:
+             return {"success": False, "error": {"message": "Server not configured. Run initialize_config first."}}
+
+        projects = self.config.get("projects", {})
+        if project not in projects:
+            return {"success": False, "error": {"message": f"Project '{project}' not found in readiness_schema.json (Available: {list(projects.keys())})"}}
+
+        project_config = projects[project]
         env_config = project_config.get("environments", {}).get(environment, {})
-        if not env_config: return {"success": False, "error": {"message": "Env not found"}}
+        if not env_config: 
+            return {"success": False, "error": {"message": f"Environment '{environment}' not found for project '{project}'"}}
+            
         health_url = env_config.get("health_url")
         health_res = await self._execute_tool_call("check_service_health", {
             "service_name": f"{project.capitalize()} ({environment})", 

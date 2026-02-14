@@ -10,9 +10,11 @@ class CompareEnvironmentConfigsTool:
         env_1: The current target environment (e.g. staging)
         env_2: The baseline environment or repo template
         """
-        # Logic: fetch actual config for env_1, and compare with template from repo
-        # For demo purposes, we look for a local template file
-        template_file = f"config/templates/{env_2}.yaml"
+        # Use the provided template path directly if it exists, 
+        # otherwise fall back to the legacy template folder logic.
+        template_file = env_2
+        if not os.path.exists(template_file):
+            template_file = f"config/templates/{env_2}.yaml"
         
         # Simulated 'actual' data fetching (in real world, this calls a Cloud API/K8s)
         actual_data = {
