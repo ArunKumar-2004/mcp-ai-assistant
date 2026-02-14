@@ -119,7 +119,9 @@ class ConfigLoader:
                 if any(x in str(p) for x in ["node_modules", "target", ".venv", ".git"]):
                     continue
                 
-                project_name = p.parent.name if p.parent.name != "." else "root-project"
+                # Use absolute path to get folder name if p.parent is "."
+                project_name = p.parent.resolve().name
+                if project_name == "": project_name = "root-project"
                 
                 # Update discovered info (don't overwrite if already typed as specific app)
                 if project_name not in discovered or discovered[project_name]["type"] == "service":
