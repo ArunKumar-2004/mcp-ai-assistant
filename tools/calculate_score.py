@@ -1,9 +1,11 @@
 from .policy_engine import ScoringPolicy
 from models import ReadinessStatus, Recommendation
+from services.llm_client import LLMClient
 
 class CalculateReadinessScoreTool:
-    def __init__(self, policy: ScoringPolicy = None):
+    def __init__(self, policy: ScoringPolicy = None, llm_client: LLMClient = None):
         self.policy = policy or ScoringPolicy()
+        self.llm_client = llm_client or LLMClient()
 
     async def execute(self, log_analysis: dict, drift_analysis: dict, health_checks: list, db_status: str) -> dict:
         penalties = []
@@ -47,6 +49,9 @@ class CalculateReadinessScoreTool:
             status = ReadinessStatus.NOT_SAFE
             recommendation = Recommendation.BLOCK_AUTOMATION
             
+        # Final AI-First Executive Summary
+        ai_res = self._generate_ai_executive_summary(score, status, penalties)
+
         return {
             "success": True,
             "data": {
@@ -54,7 +59,27 @@ class CalculateReadinessScoreTool:
                 "status": status,
                 "penalties": penalties,
                 "recommendation": recommendation,
-                "explanation": f"Readiness Score: {score}/100. Status: {status.value.upper()}. {len(penalties)} risks identified.",
-                "suggested_fix": "Address the highest severity penalties in the audit report to improve the score." if penalties else "No immediate action required."
+                "explanation": ai_res.get("explanation", f"Score: {score}. Status: {status.value}."),
+                "suggested_fix": ai_res.get("suggested_fix", "Address identified risks.")
             }
         }
+
+    def _generate_ai_executive_summary(self, score: int, status: ReadinessStatus, penalties: list) -> dict:
+        """Uses AI to synthesize a 'respective' executive summary of the entire deployment readiness."""
+        prompt = (
+            f"As an AI Deployment Auditor, provide an executive summary of the readiness for this release.\n"
+            f"Numerical Score: {score}/100\n"
+            f"Status Level: {status.value}\n"
+            f"Identified Risks/Penalties:\n" + "\n".join([f"- {p}" for p in penalties]) + "\n\n"
+            "Return a JSON object with two fields:\n"
+            "1. 'explanation': A professional, informative summary of the readiness state.\n"
+            "2. 'suggested_fix': A long-term remediation strategy to reach 100/100 readiness.\n"
+            "The tone should be authoritative yet helpful and provide 'respective' feedback."
+        )
+        try:
+            return self.llm_client.generate_with_tools(prompt)
+        except Exception as e:
+            return {
+                "explanation": f"Readiness Score: {score}/100. Status: {status.value.upper()}.",
+                "suggested_fix": "Review technical diagnostics manually."
+            }

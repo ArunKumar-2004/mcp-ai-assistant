@@ -9,76 +9,53 @@ logger = logging.getLogger("config_driver")
 class DriftAnalyst:
     """
     Analyzes drift between configuration templates and actual environment files.
+    Purely deterministic: gathers technical facts (missing keys, value issues).
     """
     def compare_configs(self, template_path: str, actual_data: Dict[str, Any], integrity_mode: bool = False) -> dict:
-        """
-        Compares configuration. 
-        If integrity_mode=True (single-env), skips drift detection and performs an Integrity Audit.
-        Otherwise, performs a Cross-Environment Drift Analysis.
-        """
         issues = []
-        analysis_type = "INTEGRITY" if integrity_mode else "DRIFT"
         
-        # Load baseline for context (even in integrity mode, we might want to check against expected keys)
-        template = {}
-        if os.path.exists(template_path):
-            try:
-                with open(template_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    ext = os.path.splitext(template_path)[1].lower()
-                    if ext in ['.yaml', '.yml']: template = yaml.safe_load(content)
-                    elif ext == '.json': template = json.loads(content)
-                    elif '.env' in template_path or template_path.endswith('.local'): template = self._parse_dotenv(content)
-                    elif ext == '.properties': template = self._parse_properties(content)
-                    elif template_path.endswith('pom.xml'): template = self._parse_pom_xml(content)
-                    elif 'Dockerfile' in template_path: template = self._parse_dockerfile(content)
-                    else: template = self._parse_dotenv(content) # Fallback to flat/env
-            except Exception as e:
-                logger.error(f"Failed to parse baseline {template_path}: {e}")
+        # 1. Fuzzy Resolution
+        resolved_path = self._resolve_fuzzy_path(template_path)
+        if not os.path.exists(resolved_path):
+             raise FileNotFoundError(f"Configuration baseline '{template_path}' not found.")
 
+        # 2. Load and Parse baseline
+        template = {}
+        with open(resolved_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            ext = os.path.splitext(resolved_path)[1].lower()
+            if ext in ['.yaml', '.yml']: template = yaml.safe_load(content)
+            elif ext == '.json': template = json.loads(content)
+            elif '.env' in resolved_path or resolved_path.endswith('.local'): template = self._parse_dotenv(content)
+            elif ext == '.properties': template = self._parse_properties(content)
+            elif resolved_path.endswith('pom.xml'): template = self._parse_pom_xml(content)
+            elif 'Dockerfile' in resolved_path: template = self._parse_dockerfile(content)
+            else: template = self._parse_dotenv(content) if '=' in content else json.loads(content)
+
+        if not template:
+            return {"drift_detected": False, "drift_keys": [], "error": "EMPTY_BASELINE", "resolved_path": resolved_path}
+
+        # 3. Perform Audit
         if integrity_mode:
-            # For single-environment projects, audit the configuration file itself for completion
             issues = self._find_value_issues(template)
         else:
-            # For multi-environment projects, identify drift between baseline and target
-            if template:
-                issues = self._find_missing_keys(template, actual_data)
-
-        issues = list(set(issues))
-        explanation = self._generate_explanation(template_path, issues, integrity_mode)
-        suggested_fix = self._generate_suggested_fix(template_path, issues, integrity_mode)
+            issues = self._find_missing_keys(template, actual_data)
 
         return {
             "drift_detected": len(issues) > 0,
-            "drift_keys": issues,
-            "explanation": explanation,
-            "suggested_fix": suggested_fix,
-            "version_mismatch": False,
-            "analysis_type": analysis_type
+            "drift_keys": list(set(issues)),
+            "resolved_path": resolved_path,
+            "analysis_type": "INTEGRITY" if integrity_mode else "DRIFT"
         }
 
-    def _generate_explanation(self, path: str, issues: List[str], integrity_mode: bool) -> str:
-        file_name = os.path.basename(path)
-        if not issues:
-            return f"✅ Readiness Audit Passed. The environment configuration is complete and contains no empty or placeholder values." if integrity_mode else f"✅ Configuration Alignment Verified. No drift detected between the target environment and the '{file_name}' baseline."
-
-        count = len(issues)
-        if integrity_mode:
-            return f"⚠️ Readiness Alert: Your environment setup is incomplete. {count} configuration key(s) are currently set to empty or placeholder values (e.g., TODO/CHANGE_ME). This will prevent a successful deployment."
-        else:
-            return f"❌ Deployment Risk: Configuration drift detected. {count} key(s) defined in your baseline '{file_name}' are missing from the target environment. This environment is out of sync with your deployment template."
-
-    def _generate_suggested_fix(self, path: str, issues: List[str], integrity_mode: bool) -> str:
-        if not issues:
-            return "No remediation required. Your configuration adheres to the defined deployment standard."
-
-        file_name = os.path.basename(path)
-        if integrity_mode:
-            formatted_issues = "\n".join([f"  - {i}" for i in issues])
-            return f"To finalize your setup, replace the placeholders or empty strings for the following keys with real secrets or valid configuration values:\n\n{formatted_issues}\n\nSearch your .env or configuration files for 'TODO' or 'CHANGE_ME' to find these items."
-        else:
-            formatted_issues = "\n".join([f"  - {i}" for i in issues])
-            return f"To align this environment with the '{file_name}' baseline, append the following missing keys to your target configuration:\n\n{formatted_issues}"
+    def _resolve_fuzzy_path(self, path: str) -> str:
+        if os.path.exists(path): return path
+        if ".env" in path or path.endswith(".local") or path.endswith(".example"):
+            base_dir = os.path.dirname(path) or "."
+            for var in [".env", ".env.local", ".env.example", ".env.production"]:
+                check_path = os.path.join(base_dir, var)
+                if os.path.exists(check_path): return check_path
+        return path
 
     def _find_value_issues(self, data: dict, prefix: str = "") -> List[str]:
         """Detects empty or 'placeholder' values while avoiding false positives."""

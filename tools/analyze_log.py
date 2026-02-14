@@ -8,10 +8,16 @@ class AnalyzeBuildLogTool:
 
     async def execute(self, log_text: str) -> dict:
         prompt = (
-            "Analyze the following build log and determine the root cause. "
-            "Return JSON only with keys: category (INFRA|CODE|CONFIG|DEPENDENCY|FLAKY), "
-            "severity (LOW|MEDIUM|HIGH), confidence (float 0-1), explanation (string), suggested_fix (string).\n\n"
-            f"Log:\n{log_text}"
+            "As an AI Build Engineer, analyze this build log to identify the root cause of failure.\n"
+            "Raw Log Content:\n"
+            f"{log_text[:5000]}\n\n" # Truncate if too long for prompt
+            "Return a JSON object with these keys:\n"
+            "1. 'category': (INFRA|CODE|CONFIG|DEPENDENCY|FLAKY)\n"
+            "2. 'severity': (LOW|MEDIUM|HIGH)\n"
+            "3. 'confidence': (float 0-1)\n"
+            "4. 'explanation': A professional, technical explanation of the root cause.\n"
+            "5. 'suggested_fix': Concrete, actionable steps to resolve the issue.\n"
+            "The tone should be 'respective', direct, and highly professional."
         )
         
         try:
@@ -22,39 +28,42 @@ class AnalyzeBuildLogTool:
                 "data": validated
             }
         except Exception as e:
-            # Fallback to rule-based if LLM fails or returns garbage
+            # Even if the analysis fails, use AI to narrate the system failure
+            error_narration = self._generate_error_narration(str(e))
             return {
-                "success": True,
-                "data": self._fallback_rule_classifier(log_text)
+                "success": False,
+                "error": {
+                    "code": "ANALYSIS_ERROR",
+                    "message": str(e),
+                    "explanation": error_narration.get("explanation", "The log analysis engine encountered an internal error."),
+                    "suggested_fix": error_narration.get("suggested_fix", "Review logs manually or retry.")
+                }
             }
 
     def _validate_llm_response(self, response: dict) -> dict:
-        # Ensure fields exist and are in correct format
         if not isinstance(response, dict):
              raise ValueError("LLM response is not a dict")
              
         return {
-            "category": response.get("category", LogCategory.INFRA).upper(),
-            "severity": response.get("severity", Severity.MEDIUM).upper(),
+            "category": str(response.get("category", LogCategory.INFRA)).upper(),
+            "severity": str(response.get("severity", Severity.MEDIUM)).upper(),
             "confidence": float(response.get("confidence", 0.5)),
-            "explanation": response.get("explanation", response.get("root_cause_summary", "Unknown")),
-            "suggested_fix": response.get("suggested_fix", "Manual review required")
+            "explanation": response.get("explanation", "Unknown cause."),
+            "suggested_fix": response.get("suggested_fix", "Manual review required.")
         }
 
-    def _fallback_rule_classifier(self, log_text: str) -> dict:
-        severity = Severity.MEDIUM
-        category = LogCategory.CODE
-        
-        if "DB" in log_text.upper() or "DATABASE" in log_text.upper():
-            category = LogCategory.INFRA
-            severity = Severity.HIGH
-        elif "DRIFT" in log_text.upper():
-            category = LogCategory.CONFIG
-            
-        return {
-            "category": category,
-            "severity": severity,
-            "confidence": 0.4,
-            "explanation": "Rule-based analysis (Fallback)",
-            "suggested_fix": "Check logs manually for specific error."
-        }
+    def _generate_error_narration(self, error_msg: str) -> dict:
+        """Narrates a log analysis failure using AI."""
+        prompt = (
+            f"The build log analysis engine encountered an internal error: {error_msg}\n"
+            "Explain in professional terms why the AI analysis failed and what the user should do. "
+            "Return JSON with 'explanation' and 'suggested_fix'."
+        )
+        try:
+            # Use a very short timeout/simple call for error narration
+            return self.llm_client.generate_with_tools(prompt)
+        except:
+            return {
+                "explanation": "Diagnostic engine timeout during log analysis.",
+                "suggested_fix": "Please check the build logs manually for high-priority errors."
+            }

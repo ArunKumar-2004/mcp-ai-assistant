@@ -2,12 +2,14 @@ import httpx
 import os
 import logging
 import time
+from services.llm_client import LLMClient
 
 logger = logging.getLogger("health_driver")
 
 class DeepHealthDriver:
     """
     Performs semantic health checks by parsing standard health response formats.
+    Purely deterministic: gathers raw status, code, and latency.
     """
     async def check_service(self, url: str) -> dict:
         start_time = time.time()
@@ -16,31 +18,21 @@ class DeepHealthDriver:
                 response = await client.get(url)
                 latency = int((time.time() - start_time) * 1000)
                 
-                # Check for standard IETF health check format or simple status keys
                 try:
                     data = response.json()
-                    # Priority 1: RFC-conformant "status" field
-                    # Priority 2: Standard "up/down" string
                     status = data.get("status", "UP" if response.status_code == 200 else "DOWN").upper()
                 except:
                     status = "UP" if response.status_code == 200 else "DOWN"
                 
-                explanation = f"✅ Service is UP and responding within {latency}ms." if status in ["PASS", "UP", "OK", "HEALTHY"] else f"❌ Service is DOWN (HTTP {response.status_code})."
-
                 return {
                     "status": "UP" if status in ["PASS", "UP", "OK", "HEALTHY"] else "DOWN",
                     "latency_ms": latency,
                     "http_code": response.status_code,
-                    "explanation": explanation
+                    "raw_status": status
                 }
         except Exception as e:
             logger.error(f"Health check failed for {url}: {e}")
-            return {
-                "status": "DOWN", 
-                "latency_ms": 0, 
-                "error": str(e),
-                "explanation": f"❌ Health check failed: {str(e)}"
-            }
+            raise
 
 class DatabaseDriver:
     """
