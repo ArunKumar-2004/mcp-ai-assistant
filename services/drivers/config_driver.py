@@ -37,10 +37,10 @@ class DriftAnalyst:
                 logger.error(f"Failed to parse baseline {template_path}: {e}")
 
         if integrity_mode:
-            # Per user request: Single environment only checks if keys are filed, correct, or not empty/invalid
-            issues = self._find_value_issues(actual_data)
+            # For single-environment projects, audit the configuration file itself for completion
+            issues = self._find_value_issues(template)
         else:
-            # Multi-environment check: Identify keys missing from target that exist in baseline
+            # For multi-environment projects, identify drift between baseline and target
             if template:
                 issues = self._find_missing_keys(template, actual_data)
 
@@ -81,13 +81,31 @@ class DriftAnalyst:
             return f"To align this environment with the '{file_name}' baseline, append the following missing keys to your target configuration:\n\n{formatted_issues}"
 
     def _find_value_issues(self, data: dict, prefix: str = "") -> List[str]:
-        """Detects empty or 'placeholder' values (e.g., 'your_key_here')."""
+        """Detects empty or 'placeholder' values while avoiding false positives."""
         issues = []
-        placeholders = ["YOUR_KEY_HERE", "TODO", "NONE", "NULL", "CHANGE_ME", "EXAMPLE"]
+        # Exact match placeholders (case-insensitive)
+        exact_placeholders = ["NONE", "NULL", "TODO", "CHANGE_ME", "PLACEHOLDER", "YOUR_KEY_HERE"]
+        
         for key, value in data.items():
             full_key = f"{prefix}{key}"
-            if value is None or (isinstance(value, str) and (not value.strip() or any(p in value.upper() for p in placeholders))):
-                issues.append(f"{full_key} (EMPTY_OR_PLACEHOLDER)")
+            if value is None:
+                issues.append(f"{full_key} (NULL)")
+                continue
+                
+            if isinstance(value, str):
+                v_strip = value.strip()
+                v_upper = v_strip.upper()
+                
+                # 1. Empty check
+                if not v_strip:
+                    issues.append(f"{full_key} (EMPTY)")
+                # 2. Strict placeholder check
+                elif v_upper in exact_placeholders:
+                    issues.append(f"{full_key} ({v_upper})")
+                # 3. Pattern check for common placeholders
+                elif any(p in v_upper for p in ["YOUR_KEY_HERE", "INSERT_SECRET"]):
+                    issues.append(f"{full_key} (PLACEHOLDER)")
+                # Note: We omit "EXAMPLE" from partial matches to avoid flagging "example.com"
             elif isinstance(value, dict):
                 issues.extend(self._find_value_issues(value, f"{full_key}."))
         return issues
