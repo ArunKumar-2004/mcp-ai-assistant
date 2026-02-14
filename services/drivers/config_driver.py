@@ -12,85 +12,73 @@ class DriftAnalyst:
     """
     def compare_configs(self, template_path: str, actual_data: Dict[str, Any], integrity_mode: bool = False) -> dict:
         """
-        Compares a template file with live data.
-        If integrity_mode is True, it focuses on whether values are filled and valid
-        (useful for single-environment projects).
+        Compares configuration. 
+        If integrity_mode=True (single-env), skips drift detection and performs an Integrity Audit.
+        Otherwise, performs a Cross-Environment Drift Analysis.
         """
-        if not os.path.exists(template_path):
-            logger.warning(f"Template file {template_path} not found.")
-            return {"drift_detected": False, "drift_keys": []}
-
-        # Load template
-        with open(template_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-            ext = os.path.splitext(template_path)[1].lower()
-            
-            if ext in ['.yaml', '.yml']:
-                template = yaml.safe_load(content)
-            elif ext == '.json':
-                template = json.loads(content)
-            elif '.env' in template_path or template_path.endswith('.local'):
-                template = self._parse_dotenv(content)
-            elif ext == '.properties':
-                template = self._parse_properties(content)
-            elif template_path.endswith('pom.xml'):
-                template = self._parse_pom_xml(content)
-            elif 'Dockerfile' in template_path:
-                template = self._parse_dockerfile(content)
-            else:
-                try:
-                    template = json.loads(content)
-                except:
-                    template = self._parse_dotenv(content)
-
-        if not isinstance(template, dict):
-             logger.warning(f"Template at {template_path} did not parse to a dictionary.")
-             return {"drift_detected": False, "drift_keys": []}
-
-        drift = self._find_missing_keys(template, actual_data)
-        value_issues = []
+        issues = []
+        analysis_type = "INTEGRITY" if integrity_mode else "DRIFT"
         
-        # In Integrity Mode, we also check if the existing values are empty/dummy
-        if integrity_mode:
-            value_issues = self._find_value_issues(actual_data)
-            drift.extend(value_issues)
+        # Load baseline for context (even in integrity mode, we might want to check against expected keys)
+        template = {}
+        if os.path.exists(template_path):
+            try:
+                with open(template_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    ext = os.path.splitext(template_path)[1].lower()
+                    if ext in ['.yaml', '.yml']: template = yaml.safe_load(content)
+                    elif ext == '.json': template = json.loads(content)
+                    elif '.env' in template_path or template_path.endswith('.local'): template = self._parse_dotenv(content)
+                    elif ext == '.properties': template = self._parse_properties(content)
+                    elif template_path.endswith('pom.xml'): template = self._parse_pom_xml(content)
+                    elif 'Dockerfile' in template_path: template = self._parse_dockerfile(content)
+                    else: template = self._parse_dotenv(content) # Fallback to flat/env
+            except Exception as e:
+                logger.error(f"Failed to parse baseline {template_path}: {e}")
 
-        drift = list(set(drift))
-        explanation = self._generate_explanation(template_path, drift, integrity_mode)
-        suggested_fix = self._generate_suggested_fix(template_path, drift, integrity_mode)
+        if integrity_mode:
+            # Per user request: Single environment only checks if keys are filed, correct, or not empty/invalid
+            issues = self._find_value_issues(actual_data)
+        else:
+            # Multi-environment check: Identify keys missing from target that exist in baseline
+            if template:
+                issues = self._find_missing_keys(template, actual_data)
+
+        issues = list(set(issues))
+        explanation = self._generate_explanation(template_path, issues, integrity_mode)
+        suggested_fix = self._generate_suggested_fix(template_path, issues, integrity_mode)
 
         return {
-            "drift_detected": len(drift) > 0,
-            "drift_keys": drift,
+            "drift_detected": len(issues) > 0,
+            "drift_keys": issues,
             "explanation": explanation,
             "suggested_fix": suggested_fix,
             "version_mismatch": False,
-            "analysis_type": "INTEGRITY" if integrity_mode else "DRIFT"
+            "analysis_type": analysis_type
         }
 
     def _generate_explanation(self, path: str, issues: List[str], integrity_mode: bool) -> str:
-        """Synthesizes technical findings into human-readable summary."""
         file_name = os.path.basename(path)
         if not issues:
-            mode_text = "Integrity check" if integrity_mode else "Configuration comparison"
-            return f"✅ {mode_text} for '{file_name}' passed. All keys are present and have valid values."
-        
+            return f"✅ Readiness Audit Passed. The environment configuration is complete and contains no empty or placeholder values." if integrity_mode else f"✅ Configuration Alignment Verified. No drift detected between the target environment and the '{file_name}' baseline."
+
         count = len(issues)
         if integrity_mode:
-            return f"⚠️ Integrity check for '{file_name}' found {count} issue(s). Some required environment variables are either empty or contain placeholder values (e.g. TODO/CHANGE_ME)."
+            return f"⚠️ Readiness Alert: Your environment setup is incomplete. {count} configuration key(s) are currently set to empty or placeholder values (e.g., TODO/CHANGE_ME). This will prevent a successful deployment."
         else:
-            return f"❌ Configuration drift detected! {count} key(s) from the baseline '{file_name}' are missing from the target environment. This may cause runtime failures."
+            return f"❌ Deployment Risk: Configuration drift detected. {count} key(s) defined in your baseline '{file_name}' are missing from the target environment. This environment is out of sync with your deployment template."
 
     def _generate_suggested_fix(self, path: str, issues: List[str], integrity_mode: bool) -> str:
-        """Generates clear, actionable fixes for detected issues."""
         if not issues:
-            return "No action required."
+            return "No remediation required. Your configuration adheres to the defined deployment standard."
 
         file_name = os.path.basename(path)
         if integrity_mode:
-            return f"Review {file_name} and ensure that the following keys have real values instead of placeholders: {', '.join(issues)}"
+            formatted_issues = "\n".join([f"  - {i}" for i in issues])
+            return f"To finalize your setup, replace the placeholders or empty strings for the following keys with real secrets or valid configuration values:\n\n{formatted_issues}\n\nSearch your .env or configuration files for 'TODO' or 'CHANGE_ME' to find these items."
         else:
-            return f"Add the missing keys to your target environment to match the baseline '{file_name}': {', '.join(issues)}"
+            formatted_issues = "\n".join([f"  - {i}" for i in issues])
+            return f"To align this environment with the '{file_name}' baseline, append the following missing keys to your target configuration:\n\n{formatted_issues}"
 
     def _find_value_issues(self, data: dict, prefix: str = "") -> List[str]:
         """Detects empty or 'placeholder' values (e.g., 'your_key_here')."""
