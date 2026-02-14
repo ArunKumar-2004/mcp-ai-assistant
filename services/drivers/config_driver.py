@@ -16,7 +16,7 @@ class DriftAnalyst:
         """
         if not os.path.exists(template_path):
             logger.warning(f"Template file {template_path} not found.")
-            return {"drift_detected": False, "missing_keys": []}
+            return {"drift_detected": False, "drift_keys": []}
 
         # Load template
         with open(template_path, 'r') as f:
@@ -25,11 +25,11 @@ class DriftAnalyst:
             else:
                 template = json.load(f)
 
-        missing = self._find_missing_keys(template, actual_data)
+        drift = self._find_missing_keys(template, actual_data)
         
         return {
-            "drift_detected": len(missing) > 0,
-            "drift_keys": missing,
+            "drift_detected": len(drift) > 0,
+            "drift_keys": drift,
             "version_mismatch": False # Would need version metadata from actual_data
         }
 
