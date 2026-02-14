@@ -53,6 +53,8 @@ class CalculateReadinessScoreTool:
                 "readiness_score": score,
                 "status": status,
                 "penalties": penalties,
-                "recommendation": recommendation
+                "recommendation": recommendation,
+                "explanation": f"Readiness Score: {score}/100. Status: {status.value.upper()}. {len(penalties)} risks identified.",
+                "suggested_fix": "Address the highest severity penalties in the audit report to improve the score." if penalties else "No immediate action required."
             }
         }

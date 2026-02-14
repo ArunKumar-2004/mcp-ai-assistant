@@ -31,12 +31,13 @@ class LogAnalysisResult(BaseModel):
     category: LogCategory
     severity: Severity
     confidence: float = Field(..., ge=0, le=1)
-    root_cause_summary: str
+    explanation: str # Renamed from root_cause_summary
     suggested_fix: str
 
 class DriftResult(BaseModel):
     drift_detected: bool
     drift_keys: List[str]
+    explanation: str
     version_mismatch: Optional[bool] = False
     suggested_fix: Optional[str] = None
 
@@ -44,6 +45,7 @@ class HealthCheckResult(BaseModel):
     service_name: str
     status: str # UP | DOWN
     latency_ms: int
+    explanation: str
     suggested_fix: Optional[str] = None
 
 class ScoreResult(BaseModel):
@@ -51,6 +53,8 @@ class ScoreResult(BaseModel):
     status: ReadinessStatus
     penalties: List[str]
     recommendation: Recommendation
+    explanation: str
+    suggested_fix: Optional[str] = None
     audit_report: Optional[Dict[str, Any]] = None
 
 # --- API Interaction Models ---

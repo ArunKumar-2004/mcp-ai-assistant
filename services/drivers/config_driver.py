@@ -55,12 +55,42 @@ class DriftAnalyst:
             value_issues = self._find_value_issues(actual_data)
             drift.extend(value_issues)
 
+        drift = list(set(drift))
+        explanation = self._generate_explanation(template_path, drift, integrity_mode)
+        suggested_fix = self._generate_suggested_fix(template_path, drift, integrity_mode)
+
         return {
             "drift_detected": len(drift) > 0,
-            "drift_keys": list(set(drift)),
+            "drift_keys": drift,
+            "explanation": explanation,
+            "suggested_fix": suggested_fix,
             "version_mismatch": False,
             "analysis_type": "INTEGRITY" if integrity_mode else "DRIFT"
         }
+
+    def _generate_explanation(self, path: str, issues: List[str], integrity_mode: bool) -> str:
+        """Synthesizes technical findings into human-readable summary."""
+        file_name = os.path.basename(path)
+        if not issues:
+            mode_text = "Integrity check" if integrity_mode else "Configuration comparison"
+            return f"✅ {mode_text} for '{file_name}' passed. All keys are present and have valid values."
+        
+        count = len(issues)
+        if integrity_mode:
+            return f"⚠️ Integrity check for '{file_name}' found {count} issue(s). Some required environment variables are either empty or contain placeholder values (e.g. TODO/CHANGE_ME)."
+        else:
+            return f"❌ Configuration drift detected! {count} key(s) from the baseline '{file_name}' are missing from the target environment. This may cause runtime failures."
+
+    def _generate_suggested_fix(self, path: str, issues: List[str], integrity_mode: bool) -> str:
+        """Generates clear, actionable fixes for detected issues."""
+        if not issues:
+            return "No action required."
+
+        file_name = os.path.basename(path)
+        if integrity_mode:
+            return f"Review {file_name} and ensure that the following keys have real values instead of placeholders: {', '.join(issues)}"
+        else:
+            return f"Add the missing keys to your target environment to match the baseline '{file_name}': {', '.join(issues)}"
 
     def _find_value_issues(self, data: dict, prefix: str = "") -> List[str]:
         """Detects empty or 'placeholder' values (e.g., 'your_key_here')."""

@@ -24,9 +24,7 @@ class CompareEnvironmentConfigsTool:
 
         try:
             result = self.analyst.compare_configs(template_file, actual_data, integrity_mode=integrity_mode)
-            suggested_fix = None
-            if result["drift_detected"]:
-                suggested_fix = f"Align keys {result['drift_keys']} in {env_1} with template {env_2}."
+            suggested_fix = result.get("suggested_fix", "No action required.")
 
             return {
                 "success": True,
@@ -35,6 +33,7 @@ class CompareEnvironmentConfigsTool:
                     "env_2": env_2,
                     "drift_detected": result["drift_detected"],
                     "drift_keys": result["drift_keys"],
+                    "explanation": result["explanation"],
                     "version_mismatch": False,
                     "suggested_fix": suggested_fix
                 }
@@ -42,5 +41,10 @@ class CompareEnvironmentConfigsTool:
         except Exception as e:
             return {
                 "success": False,
-                "error": {"code": "CONFIG_COMPARE_ERROR", "message": str(e)}
+                "error": {
+                    "code": "CONFIG_COMPARE_ERROR", 
+                    "message": str(e),
+                    "explanation": f"The tool failed to compare the configurations: {str(e)}",
+                    "suggested_fix": "Check if the baseline file path is correct and accessible by the server."
+                }
             }

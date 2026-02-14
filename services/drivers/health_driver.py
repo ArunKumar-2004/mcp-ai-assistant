@@ -25,14 +25,22 @@ class DeepHealthDriver:
                 except:
                     status = "UP" if response.status_code == 200 else "DOWN"
                 
+                explanation = f"✅ Service is UP and responding within {latency}ms." if status in ["PASS", "UP", "OK", "HEALTHY"] else f"❌ Service is DOWN (HTTP {response.status_code})."
+
                 return {
                     "status": "UP" if status in ["PASS", "UP", "OK", "HEALTHY"] else "DOWN",
                     "latency_ms": latency,
-                    "http_code": response.status_code
+                    "http_code": response.status_code,
+                    "explanation": explanation
                 }
         except Exception as e:
             logger.error(f"Health check failed for {url}: {e}")
-            return {"status": "DOWN", "latency_ms": 0, "error": str(e)}
+            return {
+                "status": "DOWN", 
+                "latency_ms": 0, 
+                "error": str(e),
+                "explanation": f"❌ Health check failed: {str(e)}"
+            }
 
 class DatabaseDriver:
     """

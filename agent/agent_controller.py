@@ -104,7 +104,7 @@ class DeploymentAgent:
                 self.notifier.send_deployment_alert(
                     score=data["readiness_score"],
                     status=data["status"],
-                    summary=analysis_res["data"]["root_cause_summary"],
+                    summary=analysis_res["data"]["explanation"],
                     recommendations=data["penalties"]
                 )
 
@@ -189,10 +189,13 @@ class DeploymentAgent:
         return result
 
     def _finalize_error(self, message: str, tool_result: dict):
+        error_data = tool_result.get("error", {})
         return {
             "success": False, 
             "error": {
                 "code": "EVALUATION_ABORTED", 
-                "message": f"{message}: {tool_result.get('error', {}).get('message', 'Unknown error')}"
+                "message": f"{message}: {error_data.get('message', 'Unknown error')}",
+                "explanation": error_data.get("explanation", "An unexpected error occurred during the tool sequence."),
+                "suggested_fix": error_data.get("suggested_fix", "Check the tool-specific logs for more details.")
             }
         }

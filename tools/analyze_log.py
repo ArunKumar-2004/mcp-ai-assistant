@@ -10,7 +10,7 @@ class AnalyzeBuildLogTool:
         prompt = (
             "Analyze the following build log and determine the root cause. "
             "Return JSON only with keys: category (INFRA|CODE|CONFIG|DEPENDENCY|FLAKY), "
-            "severity (LOW|MEDIUM|HIGH), confidence (float 0-1), root_cause_summary (string), suggested_fix (string).\n\n"
+            "severity (LOW|MEDIUM|HIGH), confidence (float 0-1), explanation (string), suggested_fix (string).\n\n"
             f"Log:\n{log_text}"
         )
         
@@ -37,7 +37,7 @@ class AnalyzeBuildLogTool:
             "category": response.get("category", LogCategory.INFRA).upper(),
             "severity": response.get("severity", Severity.MEDIUM).upper(),
             "confidence": float(response.get("confidence", 0.5)),
-            "root_cause_summary": response.get("root_cause_summary", "Unknown"),
+            "explanation": response.get("explanation", response.get("root_cause_summary", "Unknown")),
             "suggested_fix": response.get("suggested_fix", "Manual review required")
         }
 
@@ -55,6 +55,6 @@ class AnalyzeBuildLogTool:
             "category": category,
             "severity": severity,
             "confidence": 0.4,
-            "root_cause_summary": "Rule-based analysis (Fallback)",
+            "explanation": "Rule-based analysis (Fallback)",
             "suggested_fix": "Check logs manually for specific error."
         }
