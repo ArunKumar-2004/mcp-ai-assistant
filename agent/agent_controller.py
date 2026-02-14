@@ -32,11 +32,18 @@ class DeploymentAgent:
 
     async def evaluate_build(self, project: str, build_id: str, environment: str) -> dict:
         self.context.clear()
+        if not self.config:
+            return {
+                "success": False, 
+                "error": {
+                    "code": "NOT_CONFIGURED", 
+                    "message": "Readiness Assistant is not configured. No 'readiness_schema.json' found. "
+                               "Please run the 'initialize_config' tool to generate a default configuration."
+                }
+            }
+
         project_config = self.config.get("projects", {}).get(project, {})
         env_config = project_config.get("environments", {}).get(environment, {})
-        
-        if not env_config:
-             return {"success": False, "error": {"code": "CONFIG_ERROR", "message": f"Project '{project}' or environment '{environment}' not found in schema."}}
 
         repo = project_config.get("repo", "unknown/repo")
         self.logger.info(f"Starting evaluation for {project} (repo: {repo}) build {build_id} in {environment}")

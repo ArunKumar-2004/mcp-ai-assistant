@@ -19,16 +19,29 @@ def run_server():
         ConfigLoader.generate_default_config()
         sys.exit(0)
 
-    # 2. Production Config Loading (Fail-Fast)
-    try:
-        config = ConfigLoader().load()
-    except ConfigError as e:
-        logger.error(f"❌ STARTUP FAILED: {e}")
-        sys.exit(1)
+    # 2. Production Config Loading (Graceful)
+    # We load with fail_fast=False to allow the server to start even if files are missing.
+    loader = ConfigLoader()
+    config = loader.load(fail_fast=False)
 
     # 3. Initialize Agent and Server
-    mcp = FastMCP(config.get("project_name", "AI Deployment Readiness Assistant"))
+    mcp = FastMCP("Readiness Assistant")
     agent = DeploymentAgent(config=config)
+
+    @mcp.tool()
+    async def initialize_config() -> dict:
+        """
+        Creates a default readiness_schema.json in the current directory.
+        Use this if the server reports that configuration is missing.
+        """
+        if loader.exists():
+            return {"success": False, "error": "Configuration file already exists."}
+        
+        ConfigLoader.generate_default_config()
+        # Reload agent with new config
+        new_config = loader.load(fail_fast=True)
+        agent.config = new_config
+        return {"success": True, "message": "Initialized readiness_schema.json. Please edit it to add your projects."}
 
     @mcp.tool()
     async def evaluate_build(project: str, build_id: str, environment: str) -> dict:

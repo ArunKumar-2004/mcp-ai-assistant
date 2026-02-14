@@ -17,12 +17,18 @@ class ConfigLoader:
         self.config_path = Path(config_path)
         self.config = None
 
-    def load(self) -> dict:
+    def load(self, fail_fast: bool = True) -> dict:
         """
         Loads and validates the configuration.
-        Implements Fail-Fast behavior.
         """
-        self._check_file_exists()
+        if not self.config_path.exists():
+            if fail_fast:
+                raise ConfigError(
+                    f"Config file not found: {self.config_path}\n"
+                    f"To generate a default config, run the 'initialize_config' tool or: python server.py --init-config"
+                )
+            return {}
+
         self._read_json()
         self._validate_structure()
         self._apply_env_overrides()
@@ -31,12 +37,8 @@ class ConfigLoader:
         logger.info("✅ Configuration validated and loaded successfully")
         return self.config
 
-    def _check_file_exists(self):
-        if not self.config_path.exists():
-            raise ConfigError(
-                f"Config file not found: {self.config_path}\n"
-                f"To generate a default config, run: python server.py --init-config"
-            )
+    def exists(self) -> bool:
+        return self.config_path.exists()
 
     def _read_json(self):
         try:
