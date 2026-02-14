@@ -11,14 +11,14 @@ class CheckDatabaseConnectionTool:
 
     async def execute(self, environment: str) -> dict:
         try:
-            # Deterministic Fact Gathering
-            ping_res = self.driver.check_connectivity()
-            migration_res = self.driver.check_migrations()
+            # Deterministic Fact Gathering (async calls)
+            ping_res = await self.driver.check_connectivity()
+            migration_res = await self.driver.check_migrations()
             
             facts = {
                 "environment": environment,
                 "db_status": ping_res["status"], # CONNECTED | FAILED
-                "response_time_ms": ping_res["latency_ms"],
+                "response_time_ms": ping_res.get("latency_ms", 0),
                 "migrations_ok": migration_res["match"]
             }
 

@@ -17,7 +17,11 @@ dependencies = [
     "psycopg2-binary",
     "httpx",
     "python-dotenv",
-    "pyyaml"
+    "pyyaml",
+    # Async database drivers
+    "asyncpg>=0.29.0",      # PostgreSQL async driver
+    "aiomysql>=0.2.0",      # MySQL async driver
+    "motor>=3.3.0"          # MongoDB async driver (async pymongo)
 ]
 
 [project.scripts]
