@@ -135,10 +135,15 @@ class DeploymentAgent:
         if not env_config: 
             return {"success": False, "error": {"message": f"Environment '{environment}' not found for project '{project}'"}}
             
+        # Smart Awareness: If only one environment is defined, we do an Integrity Check
+        # (check if values are filled/valid) rather than just a key-drift check.
+        is_single_env = len(project_config.get("environments", {})) <= 1
+        
         template_file = env_config.get("config_template")
         drift_res = await self._execute_tool_call("compare_environment_configs", {
             "env_1": environment, 
-            "env_2": template_file
+            "env_2": template_file,
+            "integrity_mode": is_single_env
         })
         return drift_res
 

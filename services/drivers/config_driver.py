@@ -10,9 +10,11 @@ class DriftAnalyst:
     """
     Analyzes drift between configuration templates and actual environment files.
     """
-    def compare_configs(self, template_path: str, actual_data: Dict[str, Any]) -> dict:
+    def compare_configs(self, template_path: str, actual_data: Dict[str, Any], integrity_mode: bool = False) -> dict:
         """
-        Compares a template file (structural source of truth) with live data.
+        Compares a template file with live data.
+        If integrity_mode is True, it focuses on whether values are filled and valid
+        (useful for single-environment projects).
         """
         if not os.path.exists(template_path):
             logger.warning(f"Template file {template_path} not found.")
@@ -26,7 +28,7 @@ class DriftAnalyst:
             if ext in ['.yaml', '.yml']:
                 template = yaml.safe_load(content)
             elif ext == '.json':
-                template = json.load(content)
+                template = json.loads(content)
             elif '.env' in template_path or template_path.endswith('.local'):
                 template = self._parse_dotenv(content)
             elif ext == '.properties':
@@ -36,7 +38,6 @@ class DriftAnalyst:
             elif 'Dockerfile' in template_path:
                 template = self._parse_dockerfile(content)
             else:
-                # Fallback to guessing
                 try:
                     template = json.loads(content)
                 except:
@@ -47,12 +48,31 @@ class DriftAnalyst:
              return {"drift_detected": False, "drift_keys": []}
 
         drift = self._find_missing_keys(template, actual_data)
+        value_issues = []
         
+        # In Integrity Mode, we also check if the existing values are empty/dummy
+        if integrity_mode:
+            value_issues = self._find_value_issues(actual_data)
+            drift.extend(value_issues)
+
         return {
             "drift_detected": len(drift) > 0,
-            "drift_keys": drift,
-            "version_mismatch": False # Would need version metadata from actual_data
+            "drift_keys": list(set(drift)),
+            "version_mismatch": False,
+            "analysis_type": "INTEGRITY" if integrity_mode else "DRIFT"
         }
+
+    def _find_value_issues(self, data: dict, prefix: str = "") -> List[str]:
+        """Detects empty or 'placeholder' values (e.g., 'your_key_here')."""
+        issues = []
+        placeholders = ["YOUR_KEY_HERE", "TODO", "NONE", "NULL", "CHANGE_ME", "EXAMPLE"]
+        for key, value in data.items():
+            full_key = f"{prefix}{key}"
+            if value is None or (isinstance(value, str) and (not value.strip() or any(p in value.upper() for p in placeholders))):
+                issues.append(f"{full_key} (EMPTY_OR_PLACEHOLDER)")
+            elif isinstance(value, dict):
+                issues.extend(self._find_value_issues(value, f"{full_key}."))
+        return issues
 
     def _parse_dotenv(self, content: str) -> dict:
         """Parses KEY=VALUE pairs from a string."""

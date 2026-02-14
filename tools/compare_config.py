@@ -5,7 +5,7 @@ class CompareEnvironmentConfigsTool:
     def __init__(self, analyst: DriftAnalyst = None):
         self.analyst = analyst or DriftAnalyst()
 
-    async def execute(self, env_1: str, env_2: str) -> dict:
+    async def execute(self, env_1: str, env_2: str, integrity_mode: bool = False) -> dict:
         """
         env_1: The current target environment (e.g. staging)
         env_2: The baseline environment or repo template
@@ -23,7 +23,7 @@ class CompareEnvironmentConfigsTool:
         }
 
         try:
-            result = self.analyst.compare_configs(template_file, actual_data)
+            result = self.analyst.compare_configs(template_file, actual_data, integrity_mode=integrity_mode)
             suggested_fix = None
             if result["drift_detected"]:
                 suggested_fix = f"Align keys {result['drift_keys']} in {env_1} with template {env_2}."
