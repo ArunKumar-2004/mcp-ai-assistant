@@ -9,17 +9,31 @@ The **AI Deployment Readiness Assistant** is a powerful MCP server that audits y
 - **Deep Health Checks**: Validates service endpoints and database connectivity.
 - **Multi-Project Support**: Audit any project in your organization from a single server.
 
-## 🛠️ Usage from GitHub
+## 🚀 Instant Usage (No Cloning)
 
-### 1. Clone & Setup
+The fastest way to use this server on any laptop is via `npx`. Add this to your IDE's MCP settings:
+
+- **Command**: `npx`
+- **Args**: `["-y", "github:your-username/readiness-assistant"]`
+- **Env**: (Add your `GITHUB_TOKEN`, etc. here)
+
+---
+
+## 🛠️ Usage & External Setup
+
+To use this MCP server on any machine (including your own or a colleague's):
+
+### 1. Installation
 
 ```bash
 git clone https://github.com/your-username/readiness-assistant.git
 cd readiness-assistant
+python -m venv .venv
+# Activate: source .venv/bin/activate (Mac/Linux) or .venv\Scripts\activate (Windows)
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment
+### 2. Configure Secrets
 
 Create a `.env` file based on `.env.example`:
 
@@ -29,34 +43,23 @@ GITHUB_TOKEN=your_token
 SLACK_WEBHOOK_URL=your_webhook
 ```
 
-### 3. Setup Project Schema
+### 3. Initialize Schema
 
-Initialize your `readiness_schema.json`:
+Initialize or copy the example schema:
 
 ```bash
 python server.py --init-config
+# OR
+cp readiness_schema.json.example readiness_schema.json
 ```
 
-Edit the generated file to include your project repos and health URLs.
+### 4. Connect to IDE (Antigravity/Cursor)
 
-### 4. Connect to your IDE (Antigravity/Cursor/Claude)
+In your IDE settings, add the server pointing to **the absolute path** of `server.py`:
 
-Add the following to your MCP settings:
-
-```json
-{
-  "mcp_servers": {
-    "readiness-assistant": {
-      "command": "python",
-      "args": ["/absolute/path/to/server.py"],
-      "env": {
-        "COHERE_API_KEY": "...",
-        "GITHUB_TOKEN": "..."
-      }
-    }
-  }
-}
-```
+- **Command**: `python` (or the path to your `.venv` python)
+- **Args**: `["D:/path/to/repo/server.py"]`
+- **Env**: Add your keys globally or in the IDE settings.
 
 ## 🔋 Supported Tools
 

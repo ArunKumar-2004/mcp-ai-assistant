@@ -1,0 +1,12 @@
+{
+  "name": "readiness-assistant",
+  "version": "1.0.0",
+  "description": "AI Deployment Readiness Assistant MCP Server",
+  "main": "server.py",
+  "bin": {
+    "readiness-assistant": "./server.py"
+  },
+  "scripts": {
+    "start": "python server.py"
+  }
+}

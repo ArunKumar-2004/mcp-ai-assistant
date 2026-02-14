@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from mcp.server.fastmcp import FastMCP
 from agent.agent_controller import DeploymentAgent
 from services.config_loader import ConfigLoader, ConfigError
