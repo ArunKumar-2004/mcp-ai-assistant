@@ -64,10 +64,19 @@ class EvaluateResponse(BaseModel):
     data: Optional[ScoreResult] = None
     error: Optional[Dict[str, str]] = None
 
-class ToolSuccessResponse(BaseModel):
-    success: bool = True
-    data: Any
+class ServerHealth(BaseModel):
+    status: str
+    tools_registered: int
+    environment: str
+    config_loaded: bool
 
-class ToolErrorResponse(BaseModel):
-    success: bool = False
-    error: Dict[str, str]
+class DiscoveryResult(BaseModel):
+    success: bool
+    message: str
+    discovered_projects: List[str]
+
+class ToolResponse(BaseModel):
+    """Universal wrapper for all tool responses to ensure consistent IDE parsing."""
+    success: bool
+    data: Optional[Any] = None
+    error: Optional[Dict[str, str]] = None

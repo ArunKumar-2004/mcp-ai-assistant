@@ -13,6 +13,8 @@ import os
 import json
 
 class DeploymentAgent:
+    MAX_TOOL_CALLS = 10
+
     def __init__(self, config: dict = None):
         self.config = config or {}
         self.registry = ToolRegistry()
@@ -20,6 +22,7 @@ class DeploymentAgent:
         self.notifier = WebhookDriver()
         self._register_all_tools()
         self.logger = logging.getLogger("agent")
+        self.call_count = 0
 
     def _register_all_tools(self):
         self.registry.register_tool("fetch_build_log", FetchBuildLogTool())
@@ -142,7 +145,18 @@ class DeploymentAgent:
         return health_res
 
     async def _execute_tool_call(self, tool_name: str, arguments: dict) -> dict:
-        self.logger.info(f"Invoking tool: {tool_name}")
+        self.call_count += 1
+        if self.call_count > self.MAX_TOOL_CALLS:
+            self.logger.warning(f"MAX_TOOL_CALLS ({self.MAX_TOOL_CALLS}) exceeded. Aborting to prevent loop.")
+            return {
+                "success": False, 
+                "error": {
+                    "code": "ITERATION_LIMIT_EXCEEDED", 
+                    "message": "Maximum tool call limit reached. HUMAN_REVIEW_REQUIRED to prevent infinite recursion."
+                }
+            }
+
+        self.logger.info(f"Invoking tool: {tool_name} (Call {self.call_count}/{self.MAX_TOOL_CALLS})")
         tool = self.registry.get_tool(tool_name)
         if not tool:
             return {"success": False, "error": {"code": "TOOL_NOT_FOUND", "message": f"Tool {tool_name} not found"}}

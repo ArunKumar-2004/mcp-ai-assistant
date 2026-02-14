@@ -2,6 +2,7 @@
 from mcp.server.fastmcp import FastMCP
 from agent.agent_controller import DeploymentAgent
 from services.config_loader import ConfigLoader, ConfigError
+from models import ToolResponse, ServerHealth, DiscoveryResult
 import logging
 import sys
 from dotenv import load_dotenv
@@ -29,19 +30,36 @@ def run_server():
     agent = DeploymentAgent(config=config)
 
     @mcp.tool()
-    async def initialize_config() -> dict:
+    async def initialize_config() -> DiscoveryResult:
         """
-        Creates a default readiness_schema.json in the current directory.
-        Use this if the server reports that configuration is missing.
+        Creates/updates readiness_schema.json by scanning the workspace for projects.
+        Use this if the server reports that configuration is missing or to register new projects.
         """
-        if loader.exists():
-            return {"success": False, "error": "Configuration file already exists."}
+        discovered = ConfigLoader.discover_workspace_projects()
         
-        ConfigLoader.generate_default_config()
+        ConfigLoader.generate_default_config(discovered_projects=discovered)
         # Reload agent with new config
         new_config = loader.load(fail_fast=True)
         agent.config = new_config
-        return {"success": True, "message": "Initialized readiness_schema.json. Please edit it to add your projects."}
+        
+        return DiscoveryResult(
+            success=True,
+            message="Workspace scanned and readiness_schema.json registered.",
+            discovered_projects=list(discovered.keys())
+        )
+
+    @mcp.tool()
+    async def server_health() -> ServerHealth:
+        """
+        Returns the health status and telemetry of the Readiness Assistant server.
+        Use this to debug connection or configuration loading issues.
+        """
+        return ServerHealth(
+            status="UP",
+            tools_registered=len(mcp._tool_manager.list_tools()),
+            environment=os.getenv("APP_ENV", "production"),
+            config_loaded=loader.exists()
+        )
 
     @mcp.tool()
     async def evaluate_build(project: str, build_id: str, environment: str) -> dict:

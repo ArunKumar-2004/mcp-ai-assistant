@@ -91,11 +91,75 @@ class ConfigLoader:
             )
 
     @staticmethod
-    def generate_default_config(path: str = "readiness_schema.json"):
+    def discover_workspace_projects(root_dir: str = ".") -> dict:
+        """
+        Scans workspace for polyglot markers (React, Spring, Python, Docker, K8s).
+        Returns a suggested project structure for readiness_schema.json.
+        """
+        discovered = {}
+        root = Path(root_dir)
+        
+        # Discovery Markers
+        markers = {
+            "package.json": {"type": "frontend", "hint": "React/Node"},
+            "pom.xml": {"type": "backend", "hint": "Spring Boot"},
+            "pyproject.toml": {"type": "backend", "hint": "Python"},
+            "requirements.txt": {"type": "backend", "hint": "Python"},
+            "Dockerfile": {"type": "service", "hint": "Containerized"},
+            "docker-compose.yml": {"type": "orchestration", "hint": "Docker Compose"},
+            "k8s": {"type": "infrastructure", "hint": "Kubernetes"},
+            ".github/workflows": {"type": "ci", "hint": "GitHub Actions"}
+        }
+
+        for marker_file, info in markers.items():
+            # Check for files or directories
+            search_pattern = f"**/{marker_file}"
+            for p in root.glob(search_pattern):
+                # Ignore common noise
+                if any(x in str(p) for x in ["node_modules", "target", ".venv", ".git"]):
+                    continue
+                
+                project_name = p.parent.name if p.parent.name != "." else "root-project"
+                
+                # Update discovered info (don't overwrite if already typed as specific app)
+                if project_name not in discovered or discovered[project_name]["type"] == "service":
+                    discovered[project_name] = {
+                        "type": info["type"],
+                        "path": str(p.parent),
+                        "hint": info["hint"],
+                        "repo": f"auto/{project_name}"
+                    }
+
+        return discovered
+
+    @staticmethod
+    def generate_default_config(path: str = "readiness_schema.json", discovered_projects: dict = None):
         """Utility to generate a starter config file."""
+        projects = {}
+        if discovered_projects:
+            for name, data in discovered_projects.items():
+                # Smart guessing for config templates
+                template = "config/staging.json"
+                if data["type"] == "backend":
+                    template = "src/main/resources/application-staging.yml" if data["hint"] == "Spring Boot" else "config.yaml"
+                elif data["type"] == "infrastructure":
+                    template = "values.yaml"
+                
+                projects[name] = {
+                    "repo": data["repo"],
+                    "type_hint": data["hint"],
+                    "environments": {
+                        "staging": {
+                            "health_url": f"http://localhost:8080/{name}/health",
+                            "db_url": "none",
+                            "config_template": f"{data['path']}/{template}"
+                        }
+                    }
+                }
+
         default_config = {
             "project_name": "Enterprise Readiness Hub",
-            "projects": {
+            "projects": projects or {
                 "frontend": {
                     "repo": "owner/frontend-react-app",
                     "environments": {

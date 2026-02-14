@@ -17,6 +17,9 @@ Run this server directly from GitHub without cloning. Add this to your IDE's MCP
 - **Args**: `["-y", "github:ArunKumar-2004/mcp-ai-assistant"]`
 - **Env**: (Add your `GITHUB_TOKEN`, `COHERE_API_KEY`, etc. here)
 
+> [!CAUTION]
+> **Security Warning**: Never commit your API keys or `.env` files to public repositories. Always use your IDE's built-in secret storage (Recommended) or add `.env` to your `.gitignore`.
+
 ### ⚠️ Troubleshooting "Python not found" (Windows)
 
 If you get a **Code 9009** or "Python was not found":
