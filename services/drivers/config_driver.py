@@ -19,11 +19,32 @@ class DriftAnalyst:
             return {"drift_detected": False, "drift_keys": []}
 
         # Load template
-        with open(template_path, 'r') as f:
-            if template_path.endswith(('.yaml', '.yml')):
-                template = yaml.safe_load(f)
+        with open(template_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            ext = os.path.splitext(template_path)[1].lower()
+            
+            if ext in ['.yaml', '.yml']:
+                template = yaml.safe_load(content)
+            elif ext == '.json':
+                template = json.load(content)
+            elif '.env' in template_path or template_path.endswith('.local'):
+                template = self._parse_dotenv(content)
+            elif ext == '.properties':
+                template = self._parse_properties(content)
+            elif template_path.endswith('pom.xml'):
+                template = self._parse_pom_xml(content)
+            elif 'Dockerfile' in template_path:
+                template = self._parse_dockerfile(content)
             else:
-                template = json.load(f)
+                # Fallback to guessing
+                try:
+                    template = json.loads(content)
+                except:
+                    template = self._parse_dotenv(content)
+
+        if not isinstance(template, dict):
+             logger.warning(f"Template at {template_path} did not parse to a dictionary.")
+             return {"drift_detected": False, "drift_keys": []}
 
         drift = self._find_missing_keys(template, actual_data)
         
@@ -32,6 +53,61 @@ class DriftAnalyst:
             "drift_keys": drift,
             "version_mismatch": False # Would need version metadata from actual_data
         }
+
+    def _parse_dotenv(self, content: str) -> dict:
+        """Parses KEY=VALUE pairs from a string."""
+        results = {}
+        for line in content.splitlines():
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            if '=' in line:
+                key, value = line.split('=', 1)
+                results[key.strip()] = value.strip().strip('"').strip("'")
+        return results
+
+    def _parse_properties(self, content: str) -> dict:
+        """Parses Java-style .properties files."""
+        return self._parse_dotenv(content) # Very similar syntax
+
+    def _parse_pom_xml(self, content: str) -> dict:
+        """Flattened basic properties and dependencies from Maven pom.xml."""
+        import xml.etree.ElementTree as ET
+        try:
+            root = ET.fromstring(content)
+            ns = {'ns': root.tag.split('}')[0].strip('{')} if '}' in root.tag else {}
+            
+            results = {}
+            # Extract basic metadata
+            for child in root:
+                tag = child.tag.split('}')[-1]
+                if tag in ['groupId', 'artifactId', 'version']:
+                    results[tag] = child.text
+            
+            # Extract properties
+            props = root.find('.//ns:properties', ns) if ns else root.find('.//properties')
+            if props is not None:
+                for p in props:
+                    results[f"prop.{p.tag.split('}')[-1]}"] = p.text
+            return results
+        except:
+            return {}
+
+    def _parse_dockerfile(self, content: str) -> dict:
+        """Extracts ENV instructions from Dockerfile."""
+        results = {}
+        for line in content.splitlines():
+            line = line.strip()
+            if line.startswith('ENV'):
+                parts = line[3:].strip().split(' ', 1)
+                if len(parts) == 2:
+                    key, val = parts
+                elif '=' in line:
+                    key, val = line[3:].strip().split('=', 1)
+                else:
+                    continue
+                results[key.strip()] = val.strip()
+        return results
 
     def _find_missing_keys(self, template: dict, actual: dict, prefix: str = "") -> List[str]:
         missing = []
