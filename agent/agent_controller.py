@@ -185,6 +185,11 @@ class DeploymentAgent:
             return {"success": False, "error": {"code": "TOOL_NOT_FOUND", "message": f"Tool {tool_name} not found"}}
         
         result = await tool.execute(**arguments)
+        
+        # Debug logging to see actual tool output
+        import json as json_lib
+        self.logger.info(f"Tool {tool_name} returned: {json_lib.dumps(result, indent=2)[:500]}")
+        
         self.context.add_tool_result(tool_name, result)
         return result
 
