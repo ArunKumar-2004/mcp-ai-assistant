@@ -13,11 +13,26 @@ class LLMClient:
     def __init__(self):
         self.api_url = "https://api.cohere.ai/v1/chat"
         self.api_key = os.environ.get("COHERE_API_KEY")
+        
+        # Debug logging
+        import logging
+        logger = logging.getLogger("llm_client")
+        if not self.api_key:
+            logger.error("COHERE_API_KEY is not set in environment!")
+        else:
+            logger.info(f"LLMClient initialized with API key (length: {len(self.api_key)})")
 
     def generate_with_tools(self, prompt: str, tools: list = None) -> dict:
         """
         Gemini-style method signature as per contract.
         """
+        import logging
+        logger = logging.getLogger("llm_client")
+        
+        if not self.api_key:
+            logger.error("Cannot make LLM request: API key is missing")
+            raise RuntimeError("COHERE_API_KEY not configured")
+            
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -28,30 +43,37 @@ class LLMClient:
             "temperature": 0.2,
         }
         
-        response = requests.post(self.api_url, headers=headers, json=data)
-        if not response.ok:
-            raise RuntimeError(f"LLM request failed: {response.text}")
-
-        text = response.json().get("text", "").strip()
-        
-        # Attempt to parse JSON if possible
-        json_str = text
         try:
-            # 1. Look for JSON block in markdown
-            if "```json" in text:
-                json_str = text.split("```json")[1].split("```")[0].strip()
-            elif "```" in text:
-                 json_str = text.split("```")[1].split("```")[0].strip()
+            response = requests.post(self.api_url, headers=headers, json=data, timeout=30)
             
-            # 2. Heuristic: Find first '{' and last '}' if not already parsed
-            if "{" in json_str and "}" in json_str:
-                start = json_str.find("{")
-                end = json_str.rfind("}") + 1
-                json_str = json_str[start:end]
+            if not response.ok:
+                logger.error(f"Cohere API error: {response.status_code} - {response.text}")
+                raise RuntimeError(f"LLM request failed: HTTP {response.status_code} - {response.text[:200]}")
 
-            return json.loads(json_str)
-        except (json.JSONDecodeError, ValueError):
-            return {"raw_text": text}
+            text = response.json().get("text", "").strip()
+            
+            # Attempt to parse JSON if possible
+            json_str = text
+            try:
+                # 1. Look for JSON block in markdown
+                if "```json" in text:
+                    json_str = text.split("```json")[1].split("```")[0].strip()
+                elif "```" in text:
+                     json_str = text.split("```")[1].split("```")[0].strip()
+                
+                # 2. Heuristic: Find first '{' and last '}' if not already parsed
+                if "{" in json_str and "}" in json_str:
+                    start = json_str.find("{")
+                    end = json_str.rfind("}") + 1
+                    json_str = json_str[start:end]
+
+                return json.loads(json_str)
+            except (json.JSONDecodeError, ValueError):
+                return {"raw_text": text}
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Network error calling Cohere API: {e}")
+            raise RuntimeError(f"Failed to connect to Cohere API: {str(e)}")
 
     def _handle_rate_limit(self):
         pass
