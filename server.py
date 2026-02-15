@@ -146,18 +146,23 @@ def run_server():
         return await agent._execute_tool_call("check_service_health", {"service_name": service_name, "health_url": health_url})
 
     @mcp.tool()
-    async def check_database_connection(environment: str) -> dict:
+    async def check_database_connection(environment: str, db_url: str = None) -> dict:
         """
         Test database connectivity and migration status.
-        Supports PostgreSQL, MySQL, and MongoDB with auto-detection from TARGET_DB_URL.
+        Supports PostgreSQL, MySQL, and MongoDB with auto-detection.
         
         Args:
             environment: Environment name (used for logging/context)
+            db_url: Optional database connection string. If not provided, uses TARGET_DB_URL from environment variables.
+                   Examples: postgresql://..., mysql://..., mongodb+srv://...
         
         Returns:
             Database connection status, latency, and migration verification with AI assessment.
         """
-        return await agent._execute_tool_call("check_database_connection", {"environment": environment})
+        return await agent._execute_tool_call("check_database_connection", {
+            "environment": environment,
+            "db_url": db_url
+        })
 
     @mcp.tool()
     async def verify_build(project: str, build_id: str) -> dict:

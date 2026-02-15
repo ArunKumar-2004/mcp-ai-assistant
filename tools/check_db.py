@@ -9,17 +9,30 @@ class CheckDatabaseConnectionTool:
         self.driver = driver or DatabaseDriver()
         self.llm_client = llm_client or LLMClient()
 
-    async def execute(self, environment: str) -> dict:
+    async def execute(self, environment: str, db_url: str = None) -> dict:
+        """
+        Check database connectivity and migrations.
+        
+        Args:
+            environment: Environment name (for logging/reporting)
+            db_url: Optional database URL. If not provided, uses TARGET_DB_URL from env vars.
+        """
         try:
+            # Create driver with specific db_url if provided, otherwise use default
+            driver = DatabaseDriver(db_url=db_url) if db_url else self.driver
+            
             # Deterministic Fact Gathering (async calls)
-            ping_res = await self.driver.check_connectivity()
-            migration_res = await self.driver.check_migrations()
+            ping_res = await driver.check_connectivity()
+            migration_res = await driver.check_migrations()
             
             facts = {
                 "environment": environment,
+                "db_url": db_url or "from TARGET_DB_URL env var",
+                "db_type": driver.db_type or "unknown",
                 "db_status": ping_res["status"], # CONNECTED | FAILED
                 "response_time_ms": ping_res.get("latency_ms", 0),
-                "migrations_ok": migration_res["match"]
+                "migrations_ok": migration_res["match"],
+                "migration_note": migration_res.get("note", "")
             }
 
             # AI Narrative Generation
@@ -35,7 +48,7 @@ class CheckDatabaseConnectionTool:
             }
         except Exception as e:
             # Even failures get AI-narrated responses
-            error_narration = self._generate_error_narration(str(e), environment)
+            error_narration = self._generate_error_narration(str(e), environment, db_url)
             return {
                 "success": False,
                 "error": {
