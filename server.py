@@ -8,9 +8,20 @@ import sys
 import os
 from dotenv import load_dotenv
 
-# Configure Logging early
-logging.basicConfig(level=logging.INFO)
+# Configure Logging early - reduce verbosity
+# Set root logger to WARNING to suppress verbose logs from dependencies
+logging.basicConfig(
+    level=logging.WARNING,
+    format='%(levelname)s:%(name)s:%(message)s'
+)
+
+# Suppress specific noisy loggers
+logging.getLogger("mcp.server.lowlevel.server").setLevel(logging.WARNING)
+logging.getLogger("mcp").setLevel(logging.WARNING)
+
+# Keep our custom logger at INFO for essential messages
 logger = logging.getLogger("mcp_server")
+logger.setLevel(logging.INFO)
 
 # Load environment variables - prioritize current working directory over script directory
 # This allows .env files in the user's project folder to be loaded when running via npx
@@ -102,7 +113,6 @@ def run_server():
         Orchestrates the full deployment readiness assessment for a specific project, build, and environment.
         Calls CI logs, AI analysis, config drift detection, and health checks.
         """
-        logger.info(f"MCP Tool call: evaluate_build({project}, {build_id}, {environment})")
         result = await agent.evaluate_build(project, build_id, environment)
         return result
 

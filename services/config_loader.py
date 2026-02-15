@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 logger = logging.getLogger("config_loader")
+logger.setLevel(logging.WARNING)
 
 class ConfigError(Exception):
     """Raised when configuration is invalid."""
@@ -34,7 +35,6 @@ class ConfigLoader:
         self._apply_env_overrides()
         self._validate_env_vars(fail_fast=fail_fast)
 
-        logger.info("Configuration validated and loaded successfully")
         return self.config
 
     def exists(self) -> bool:

@@ -23,6 +23,7 @@ class DeploymentAgent:
         self.notifier = WebhookDriver()
         self._register_all_tools()
         self.logger = logging.getLogger("agent")
+        self.logger.setLevel(logging.INFO)
         self.call_count = 0
 
     def _register_all_tools(self):
@@ -188,9 +189,9 @@ class DeploymentAgent:
         
         result = await tool.execute(**arguments)
         
-        # Debug logging to see actual tool output
-        import json as json_lib
-        self.logger.info(f"Tool {tool_name} returned: {json_lib.dumps(result, indent=2)[:500]}")
+        # Log only success status for concise output
+        status = "✓ SUCCESS" if result.get("success") else "✗ FAILED"
+        self.logger.info(f"Tool {tool_name} {status}")
         
         self.context.add_tool_result(tool_name, result)
         return result

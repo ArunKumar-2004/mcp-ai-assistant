@@ -17,10 +17,9 @@ class LLMClient:
         # Debug logging
         import logging
         logger = logging.getLogger("llm_client")
+        logger.setLevel(logging.WARNING)
         if not self.api_key:
             logger.error("COHERE_API_KEY is not set in environment!")
-        else:
-            logger.info(f"LLMClient initialized with API key (length: {len(self.api_key)})")
 
     def generate_with_tools(self, prompt: str, tools: list = None) -> dict:
         """
@@ -28,6 +27,7 @@ class LLMClient:
         """
         import logging
         logger = logging.getLogger("llm_client")
+        logger.setLevel(logging.WARNING)
         
         if not self.api_key:
             logger.error("Cannot make LLM request: API key is missing")
@@ -50,19 +50,15 @@ class LLMClient:
         
         for attempt in range(max_retries + 1):
             try:
-                logger.info(f"Calling Cohere API (attempt {attempt + 1}/{max_retries + 1})...")
                 response = requests.post(self.api_url, headers=headers, json=data, timeout=60)
                 
                 if not response.ok:
                     logger.error(f"Cohere API error: {response.status_code} - {response.text}")
                     raise RuntimeError(f"LLM request failed: HTTP {response.status_code} - {response.text[:200]}")
 
-                # Log the raw response for debugging
+                # Parse response
                 raw_response = response.json()
-                logger.info(f"Cohere API raw response keys: {list(raw_response.keys())}")
-                
                 text = raw_response.get("text", "").strip()
-                logger.info(f"Extracted text (first 200 chars): {text[:200]}")
                 
                 # Attempt to parse JSON if possible
                 json_str = text
@@ -70,20 +66,16 @@ class LLMClient:
                     # 1. Look for JSON block in markdown
                     if "```json" in text:
                         json_str = text.split("```json")[1].split("```")[0].strip()
-                        logger.info("Found JSON in markdown block")
                     elif "```" in text:
                          json_str = text.split("```")[1].split("```")[0].strip()
-                         logger.info("Found content in generic markdown block")
                     
                     # 2. Heuristic: Find first '{' and last '}' if not already parsed
                     if "{" in json_str and "}" in json_str:
                         start = json_str.find("{")
                         end = json_str.rfind("}") + 1
                         json_str = json_str[start:end]
-                        logger.info(f"Extracted JSON string (first 100 chars): {json_str[:100]}")
 
                     parsed = json.loads(json_str)
-                    logger.info(f"✅ Successfully parsed JSON with keys: {list(parsed.keys())}")
                     return parsed
                 except (json.JSONDecodeError, ValueError) as e:
                     logger.warning(f"JSON parsing failed: {e}. Returning raw text.")
