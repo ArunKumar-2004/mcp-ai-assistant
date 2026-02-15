@@ -1,5 +1,6 @@
 from services.drivers.ci_driver import GitHubActionsDriver
 from services.llm_client import LLMClient
+from services.env_loader import FlexibleEnvLoader
 from datetime import datetime
 import os
 import logging
@@ -10,7 +11,7 @@ class FetchBuildLogTool:
     def __init__(self, driver: GitHubActionsDriver = None, llm_client: LLMClient = None):
         self.driver = driver or GitHubActionsDriver()
         self.llm_client = llm_client or LLMClient()
-        self.default_repo = os.getenv("GITHUB_REPOSITORY") 
+        self.default_repo = FlexibleEnvLoader.get_github_repo() 
 
     async def execute(self, build_id: str, repo: str = None) -> dict:
         target_repo = repo or self.default_repo

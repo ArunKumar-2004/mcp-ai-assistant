@@ -3,16 +3,18 @@ import requests
 import zipfile
 import io
 import logging
+from services.env_loader import FlexibleEnvLoader
 
 logger = logging.getLogger("ci_driver")
 
 class GitHubActionsDriver:
     """
     Driver for fetching build logs from GitHub Actions.
-    Requires GITHUB_TOKEN in environment.
+    Automatically detects GitHub token from various environment variable names.
     """
     def __init__(self, token: str = None):
-        self.token = token or os.getenv("GITHUB_TOKEN") or os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
+        # Use flexible env loader to support multiple token variable names
+        self.token = token or FlexibleEnvLoader.get_github_token()
         self.base_url = os.getenv("GITHUB_API_URL", "https://api.github.com")
 
     def fetch_log(self, repo: str, run_id: str) -> str:

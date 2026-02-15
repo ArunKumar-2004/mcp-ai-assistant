@@ -1,5 +1,6 @@
 from services.drivers.ci_driver import GitHubActionsDriver
 from services.llm_client import LLMClient
+from services.env_loader import FlexibleEnvLoader
 from datetime import datetime
 import os
 import logging
@@ -14,7 +15,8 @@ class GetLatestBuildTool:
     def __init__(self, driver: GitHubActionsDriver = None, llm_client: LLMClient = None):
         self.driver = driver or GitHubActionsDriver()
         self.llm_client = llm_client or LLMClient()
-        self.default_repo = os.getenv("GITHUB_REPOSITORY")
+        # Use flexible env loader to detect repository from various variable names
+        self.default_repo = FlexibleEnvLoader.get_github_repo()
 
     async def execute(self, repo: str = None, workflow_name: str = None, 
                      branch: str = None, include_log: bool = True) -> dict:
