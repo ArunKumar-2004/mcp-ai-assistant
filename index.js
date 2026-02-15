@@ -11,11 +11,8 @@ const installFlagPath = path.join(__dirname, '.deps_installed');
 const python = process.platform === 'win32' ? 'python' : 'python3';
 const pip = process.platform === 'win32' ? 'pip' : 'pip3';
 
-console.error(`Starting AI Deployment Readiness Assistant via ${python}...`);
-
-// 2. Check and install dependencies if needed
+// Check and install dependencies if needed
 if (!fs.existsSync(installFlagPath)) {
-    console.error('First run detected - installing Python dependencies...');
     try {
         // Install package in editable mode to get all dependencies
         execSync(`${pip} install -e "${__dirname}"`, {
@@ -25,7 +22,6 @@ if (!fs.existsSync(installFlagPath)) {
         
         // Create flag file to skip this check next time
         fs.writeFileSync(installFlagPath, new Date().toISOString());
-        console.error('✅ Dependencies installed successfully!');
     } catch (err) {
         console.error('⚠️  Warning: Failed to install dependencies automatically.');
         console.error('Please run manually: pip install -e .');
