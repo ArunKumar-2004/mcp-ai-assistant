@@ -141,11 +141,6 @@ def run_server():
         return await agent._execute_tool_call("analyze_build_log", {"log_text": log_text})
 
     @mcp.tool()
-    async def analyze_log_with_llm(log: str) -> dict:
-        """Alias for analyze_build_log to support existing tests."""
-        return await analyze_build_log(log)
-
-    @mcp.tool()
     async def check_service_health(service_name: str, health_url: str) -> dict:
         """Check the health status and latency of a specific service."""
         return await agent._execute_tool_call("check_service_health", {"service_name": service_name, "health_url": health_url})
