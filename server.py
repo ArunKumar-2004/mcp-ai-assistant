@@ -12,11 +12,21 @@ from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mcp_server")
 
-# Load environment variables early - look in script directory
-script_dir = os.path.dirname(os.path.abspath(__file__))
-env_path = os.path.join(script_dir, '.env')
-load_dotenv(dotenv_path=env_path, override=False)  # Don't override existing env vars
-logger.info(f"Loading .env from: {env_path} (exists: {os.path.exists(env_path)})")
+# Load environment variables - prioritize current working directory over script directory
+# This allows .env files in the user's project folder to be loaded when running via npx
+env_locations = [
+    os.path.join(os.getcwd(), '.env'),  # Current working directory (user's project)
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')  # Script directory
+]
+
+for env_path in env_locations:
+    if os.path.exists(env_path):
+        load_dotenv(dotenv_path=env_path, override=False)
+        logger.info(f"✅ Loaded .env from: {env_path}")
+        break
+else:
+    logger.warning(f"⚠️  No .env file found. Searched: {env_locations}")
+    logger.info("Environment variables can also be set in MCP client settings.")
 
 def run_server():
     # 1. Handle Initialization CLI Command
