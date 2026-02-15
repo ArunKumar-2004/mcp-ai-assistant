@@ -23,8 +23,11 @@ class GitHubActionsDriver:
         Note: GitHub returns logs as a zip file containing multiple job logs.
         """
         if not self.token:
-            logger.warning("GITHUB_TOKEN not found, returning mock log.")
-            return "ERROR: GITHUB_TOKEN missing. This is a mock log.\nINFO: Build failed at step 'tests'"
+            logger.error("GITHUB_TOKEN not configured. Cannot fetch build logs.")
+            raise RuntimeError(
+                "GitHub token is required to fetch build logs. "
+                "Please set GITHUB_TOKEN, GH_TOKEN, or GITHUB_PAT environment variable."
+            )
 
         headers = {
             "Authorization": f"token {self.token}",

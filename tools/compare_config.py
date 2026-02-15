@@ -1,23 +1,39 @@
 from services.drivers.config_driver import DriftAnalyst
 from services.llm_client import LLMClient
+from services.config_service import ConfigService
 import os
 import logging
 
 logger = logging.getLogger("config_tool")
 
 class CompareEnvironmentConfigsTool:
-    def __init__(self, analyst: DriftAnalyst = None, llm_client: LLMClient = None):
+    def __init__(self, analyst: DriftAnalyst = None, llm_client: LLMClient = None, config_service: ConfigService = None):
         self.analyst = analyst or DriftAnalyst()
         self.llm_client = llm_client or LLMClient()
+        self.config_service = config_service or ConfigService()
 
     async def execute(self, env_1: str, env_2: str, integrity_mode: bool = False) -> dict:
         template_file = env_2
         if not os.path.exists(template_file):
             template_file = f"config/templates/{env_2}.yaml"
         
-        # Deterministic Fact Gathering
-        # actual_data would normally be fetched from the environment service
-        actual_data = {"DB_URL": "postgres://localhost:5432/db", "REDIS_TTL": 3600}
+        try:
+            # Real Configuration Fetching
+            logger.info(f"Fetching actual configuration for environment: {env_1}")
+            actual_data = self.config_service.fetch_environment_config(env_1)
+            logger.info(f"Retrieved {len(actual_data)} configuration values from {env_1}")
+        except RuntimeError as e:
+            # Configuration not found - return proper error
+            error_narration = self._generate_error_narration(str(e), template_file)
+            return {
+                "success": False,
+                "error": {
+                    "code": "CONFIG_FETCH_ERROR",
+                    "message": str(e),
+                    "explanation": error_narration.get("explanation", f"Failed to fetch configuration for {env_1}."),
+                    "suggested_fix": error_narration.get("suggested_fix", "Ensure environment configuration is available.")
+                }
+            }
 
         try:
             facts = self.analyst.compare_configs(template_file, actual_data, integrity_mode=integrity_mode)
