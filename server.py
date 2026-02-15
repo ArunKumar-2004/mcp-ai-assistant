@@ -151,6 +151,20 @@ def run_server():
         return await agent._execute_tool_call("check_service_health", {"service_name": service_name, "health_url": health_url})
 
     @mcp.tool()
+    async def check_database_connection(environment: str) -> dict:
+        """
+        Test database connectivity and migration status.
+        Supports PostgreSQL, MySQL, and MongoDB with auto-detection from TARGET_DB_URL.
+        
+        Args:
+            environment: Environment name (used for logging/context)
+        
+        Returns:
+            Database connection status, latency, and migration verification with AI assessment.
+        """
+        return await agent._execute_tool_call("check_database_connection", {"environment": environment})
+
+    @mcp.tool()
     async def verify_build(project: str, build_id: str) -> dict:
         """Just verify the build logs and root cause using AI."""
         return await agent.verify_build(project, build_id)
