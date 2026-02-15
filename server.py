@@ -8,12 +8,15 @@ import sys
 import os
 from dotenv import load_dotenv
 
-# Load environment variables early
-load_dotenv()
-
-# Configure Logging
+# Configure Logging early
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mcp_server")
+
+# Load environment variables early - look in script directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(script_dir, '.env')
+load_dotenv(dotenv_path=env_path, override=False)  # Don't override existing env vars
+logger.info(f"Loading .env from: {env_path} (exists: {os.path.exists(env_path)})")
 
 def run_server():
     # 1. Handle Initialization CLI Command
