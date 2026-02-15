@@ -15,8 +15,9 @@ const pip = process.platform === 'win32' ? 'pip' : 'pip3';
 if (!fs.existsSync(installFlagPath)) {
     try {
         // Install package in editable mode to get all dependencies
+        // Use 'pipe' to suppress verbose installation logs
         execSync(`${pip} install -e "${__dirname}"`, {
-            stdio: 'inherit',
+            stdio: 'pipe',
             shell: true
         });
         
@@ -24,6 +25,10 @@ if (!fs.existsSync(installFlagPath)) {
         fs.writeFileSync(installFlagPath, new Date().toISOString());
     } catch (err) {
         // Continue anyway - dependencies might already be installed
+        // Only show error if it's critical
+        if (err.status !== 0 && err.stderr) {
+            console.error('Warning: Dependency installation had issues, but continuing...');
+        }
     }
 }
 

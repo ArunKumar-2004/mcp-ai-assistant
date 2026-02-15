@@ -48,7 +48,6 @@ for search_dir in search_dirs:
         if os.path.isfile(env_file):  # Skip directories
             load_dotenv(dotenv_path=env_file, override=False)
             loaded_files.append(env_file)
-            logger.info(f"✅ Loaded: {env_file}")
     
     if loaded_files:
         break  # Stop after first directory with .env files

@@ -27,3 +27,6 @@ dependencies = [
 
 [project.scripts]
 readiness-assistant = "server:run_server"
+
+[tool.setuptools]
+packages = ["agent", "services", "tools"]
