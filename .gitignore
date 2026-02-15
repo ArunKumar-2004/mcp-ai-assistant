@@ -26,6 +26,7 @@ dist/
 # Project Specific
 readiness_schema.json
 !readiness_schema.json.example
+.deps_installed
 
 # Logs
 *.log

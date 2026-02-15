@@ -13,6 +13,7 @@ dependencies = [
     "pydantic",
     "requests",
     "google-generativeai",
+    "cohere>=5.0.0",         # Cohere AI API client
     "sqlalchemy",
     "psycopg2-binary",
     "httpx",
@@ -21,7 +22,7 @@ dependencies = [
     # Async database drivers
     "asyncpg>=0.29.0",      # PostgreSQL async driver
     "aiomysql>=0.2.0",      # MySQL async driver
-    "motor>=3.3.0"          # MongoDB async driver (async pymongo)
+    "motor"          # MongoDB async driver (async pymongo)
 ]
 
 [project.scripts]

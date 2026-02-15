@@ -1,17 +1,39 @@
 #!/usr/bin/env node
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
 const serverPath = path.join(__dirname, 'server.py');
-const requirementsPath = path.join(__dirname, 'requirements.txt');
+const pyprojectPath = path.join(__dirname, 'pyproject.toml');
+const installFlagPath = path.join(__dirname, '.deps_installed');
 
 // 1. Determine Python command
 const python = process.platform === 'win32' ? 'python' : 'python3';
+const pip = process.platform === 'win32' ? 'pip' : 'pip3';
 
 console.error(`Starting AI Deployment Readiness Assistant via ${python}...`);
 
-// 2. Spawn the process
+// 2. Check and install dependencies if needed
+if (!fs.existsSync(installFlagPath)) {
+    console.error('First run detected - installing Python dependencies...');
+    try {
+        // Install package in editable mode to get all dependencies
+        execSync(`${pip} install -e "${__dirname}"`, {
+            stdio: 'inherit',
+            shell: true
+        });
+        
+        // Create flag file to skip this check next time
+        fs.writeFileSync(installFlagPath, new Date().toISOString());
+        console.error('✅ Dependencies installed successfully!');
+    } catch (err) {
+        console.error('⚠️  Warning: Failed to install dependencies automatically.');
+        console.error('Please run manually: pip install -e .');
+        // Continue anyway - dependencies might already be installed
+    }
+}
+
+// 3. Spawn the process
 const proc = spawn(python, [serverPath, ...process.argv.slice(2)], {
     stdio: ['inherit', 'inherit', 'inherit'],
     shell: process.platform === 'win32'
