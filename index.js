@@ -23,8 +23,6 @@ if (!fs.existsSync(installFlagPath)) {
         // Create flag file to skip this check next time
         fs.writeFileSync(installFlagPath, new Date().toISOString());
     } catch (err) {
-        console.error('⚠️  Warning: Failed to install dependencies automatically.');
-        console.error('Please run manually: pip install -e .');
         // Continue anyway - dependencies might already be installed
     }
 }
