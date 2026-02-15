@@ -14,18 +14,36 @@ logger = logging.getLogger("mcp_server")
 
 # Load environment variables - prioritize current working directory over script directory
 # This allows .env files in the user's project folder to be loaded when running via npx
-env_locations = [
-    os.path.join(os.getcwd(), '.env'),  # Current working directory (user's project)
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')  # Script directory
+# Supports .env, .env.local, .env.production, .env.development, etc.
+import glob
+
+search_dirs = [
+    os.getcwd(),  # Current working directory (user's project)
+    os.path.dirname(os.path.abspath(__file__))  # Script directory
 ]
 
-for env_path in env_locations:
-    if os.path.exists(env_path):
-        load_dotenv(dotenv_path=env_path, override=False)
-        logger.info(f"✅ Loaded .env from: {env_path}")
-        break
-else:
-    logger.warning(f"⚠️  No .env file found. Searched: {env_locations}")
+loaded_files = []
+for search_dir in search_dirs:
+    # Find all .env* files in this directory
+    env_files = glob.glob(os.path.join(search_dir, '.env*'))
+    
+    # Sort to prioritize: .env, .env.local, .env.production, etc.
+    env_files.sort(key=lambda x: (
+        0 if os.path.basename(x) == '.env' else 1,  # .env first
+        os.path.basename(x)  # Then alphabetically
+    ))
+    
+    for env_file in env_files:
+        if os.path.isfile(env_file):  # Skip directories
+            load_dotenv(dotenv_path=env_file, override=False)
+            loaded_files.append(env_file)
+            logger.info(f"✅ Loaded: {env_file}")
+    
+    if loaded_files:
+        break  # Stop after first directory with .env files
+
+if not loaded_files:
+    logger.warning(f"⚠️  No .env* files found in: {search_dirs}")
     logger.info("Environment variables can also be set in MCP client settings.")
 
 def run_server():
