@@ -12,7 +12,7 @@ class GitHubActionsDriver:
     Requires GITHUB_TOKEN in environment.
     """
     def __init__(self, token: str = None):
-        self.token = token or os.getenv("GITHUB_TOKEN")
+        self.token = token or os.getenv("GITHUB_TOKEN") or os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
         self.base_url = os.getenv("GITHUB_API_URL", "https://api.github.com")
 
     def fetch_log(self, repo: str, run_id: str) -> str:
